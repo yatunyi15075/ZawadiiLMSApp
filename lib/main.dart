@@ -12,7 +12,7 @@ class FeynmanAIApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Asiko AI',
+      title: 'Zawadii Learn',
       theme: ThemeData(
         // Primary color scheme
         colorScheme: ColorScheme.fromSeed(

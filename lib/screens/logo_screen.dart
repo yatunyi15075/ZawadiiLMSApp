@@ -29,13 +29,13 @@ class _LogoScreenState extends State<LogoScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/images/feynman_logo.png', // You'll need to add this asset
+              'assets/logo.png', // You'll need to add this asset
               width: 150,
               height: 150,
             ),
             const SizedBox(height: 20),
             const Text(
-              'Feynman AI',
+              'Zawadii AI',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

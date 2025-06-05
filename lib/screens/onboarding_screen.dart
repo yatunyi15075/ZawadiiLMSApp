@@ -16,7 +16,7 @@ class OnboardingScreen extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 100,
-                backgroundImage: AssetImage('assets/images/student_avatar.png'),
+                backgroundImage: AssetImage('assets/logo.png'),
               ),
               const SizedBox(height: 20),
               const Text(
@@ -27,7 +27,7 @@ class OnboardingScreen extends StatelessWidget {
                 ),
               ),
               const Text(
-                'Feynman AI',
+                'Zawadii AI',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

@@ -15,7 +15,7 @@ class SignInScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Text(
-                'Feynman AI',
+                'Zawadii AI',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

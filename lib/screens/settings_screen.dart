@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_button.dart';
 import '../theme/app_theme.dart';
+import 'upgrade_screen.dart'; 
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);

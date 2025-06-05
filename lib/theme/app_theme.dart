@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  // Add the missing primaryColor static property
+  static const Color primaryColor = Colors.blue;
+  
   static ThemeData get lightTheme {
     return ThemeData(
       primarySwatch: Colors.blue,

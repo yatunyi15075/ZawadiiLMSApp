@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../widgets/custom_button.dart';
 
@@ -15,6 +14,7 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
   File? _selectedFile;
   String? _fileName;
   bool _isUploading = false;
+  final TextEditingController _filePathController = TextEditingController();
   
   final List<String> _languages = [
     'English',
@@ -25,31 +25,54 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
     'Arabic',
   ];
 
-  Future<void> _uploadAudioFile() async {
+  Future<void> _setAudioFile() async {
     try {
       setState(() {
         _isUploading = true;
       });
 
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.single.path != null) {
-        setState(() {
-          _selectedFile = File(result.files.single.path!);
-          _fileName = result.files.single.name;
-        });
-
-        // Show success message
+      String filePath = _filePathController.text.trim();
+      
+      if (filePath.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Audio file selected: $_fileName'),
-            backgroundColor: Colors.green,
+          const SnackBar(
+            content: Text('Please enter a file path'),
+            backgroundColor: Colors.orange,
           ),
         );
+        return;
       }
+
+      // Check if file exists
+      File file = File(filePath);
+      bool exists = await file.exists();
+      
+      if (!exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('File does not exist at the specified path'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Extract filename from path
+      String fileName = filePath.split('/').last;
+      
+      setState(() {
+        _selectedFile = file;
+        _fileName = fileName;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Audio file selected: $fileName'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
     } catch (e) {
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
@@ -93,6 +116,12 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
         backgroundColor: Colors.blue,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _filePathController.dispose();
+    super.dispose();
   }
 
   @override
@@ -167,16 +196,44 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Upload Button
+                // File Path Input
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.folder, color: Colors.grey),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextField(
+                          controller: _filePathController,
+                          decoration: const InputDecoration(
+                            hintText: 'Enter audio file path (e.g., /path/to/audio.mp3)',
+                            border: InputBorder.none,
+                          ),
+                          onSubmitted: (_) => _setAudioFile(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Set File Button
                 SizedBox(
                   width: double.infinity,
                   child: CustomButton(
                     text: _isUploading 
-                        ? 'Uploading...' 
+                        ? 'Setting file...' 
                         : _selectedFile != null 
                             ? 'Change audio file' 
-                            : 'Upload audio file',
-                    onPressed: _isUploading ? null : _uploadAudioFile,
+                            : 'Set audio file',
+                    onPressed: _isUploading ? null : _setAudioFile,
                   ),
                 ),
                 
@@ -223,6 +280,7 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
                             setState(() {
                               _selectedFile = null;
                               _fileName = null;
+                              _filePathController.clear();
                             });
                           },
                         ),

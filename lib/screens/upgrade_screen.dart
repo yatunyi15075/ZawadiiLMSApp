@@ -58,6 +58,7 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
               text: 'Get Unlimited Now',
               onPressed: () {
                 // TODO: Implement purchase logic
+                _handlePurchase();
               },
             ),
           ],
@@ -143,6 +144,48 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
           ),
         );
       }),
+    );
+  }
+
+  void _handlePurchase() {
+    final selectedPlan = _plans[_selectedPlanIndex];
+    print('Selected plan: ${selectedPlan['title']} - ${selectedPlan['price']}');
+    
+    // Show confirmation dialog
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Purchase'),
+          content: Text('You have selected the ${selectedPlan['title']} plan for ${selectedPlan['price']}.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // TODO: Implement actual purchase logic here
+                // This is where you would integrate with your payment system
+                _showPurchaseSuccess();
+              },
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPurchaseSuccess() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Purchase successful! Welcome to unlimited features!'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 }
