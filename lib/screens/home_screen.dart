@@ -62,11 +62,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final padding = screenWidth > 400 ? 20.0 : 16.0;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        foregroundColor: const Color(0xFF1E293B),
         title: _isSearching
             ? TextField(
                 controller: _searchController,
@@ -74,85 +74,128 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: InputDecoration(
                   hintText: 'Search notes...',
                   border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  hintStyle: TextStyle(color: Colors.grey[500]),
                 ),
                 style: TextStyle(
                   fontSize: isTablet ? 18 : 16,
-                  color: Colors.black87,
+                  color: const Color(0xFF1E293B),
                 ),
                 onChanged: _filterNotes,
               )
             : Text(
                 'All Notes',
                 style: TextStyle(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   fontSize: isTablet ? 22 : 20,
+                  color: const Color(0xFF1E293B),
                 ),
               ),
         actions: [
-          IconButton(
-            icon: Icon(_isSearching ? Icons.close : Icons.search_rounded),
-            onPressed: _toggleSearch,
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: Icon(
+                _isSearching ? Icons.close_rounded : Icons.search_rounded,
+                color: const Color(0xFF475569),
+              ),
+              onPressed: _toggleSearch,
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_rounded),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                ),
-              );
-            },
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.settings_rounded,
+                color: Color(0xFF475569),
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
+              },
+            ),
           ),
-          SizedBox(width: 8),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Dismissible Welcome banner
+            // Professional Welcome banner
             if (_showWelcomeBanner && !_isSearching)
               Container(
                 width: double.infinity,
+                margin: EdgeInsets.all(padding),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.orange[400]!, Colors.orange[600]!],
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.orange.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+                      color: const Color(0xFF3B82F6).withOpacity(0.25),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
-                padding: EdgeInsets.symmetric(
-                  horizontal: padding,
-                  vertical: isTablet ? 24 : 20,
-                ),
+                padding: EdgeInsets.all(isTablet ? 24 : 20),
                 child: Stack(
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Welcome to Zawadii AI',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: isTablet ? 24 : 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Your Study and Work Companion',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: isTablet ? 16 : 14,
-                            fontWeight: FontWeight.w400,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.psychology_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Welcome to Zawadii AI',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: isTablet ? 24 : 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Your intelligent study and work companion',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontSize: isTablet ? 16 : 14,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -160,10 +203,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       top: -8,
                       right: -8,
                       child: IconButton(
-                        icon: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 20,
+                        icon: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Icon(
+                            Icons.close_rounded,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                         ),
                         onPressed: () {
                           setState(() {
@@ -176,18 +226,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-            // Get Unlimited button
+            // Premium upgrade button
             if (!_isSearching)
               Padding(
-                padding: EdgeInsets.all(padding),
+                padding: EdgeInsets.symmetric(horizontal: padding),
                 child: Container(
                   width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orange.withOpacity(0.3),
-                        blurRadius: 8,
+                        color: const Color(0xFF6366F1).withOpacity(0.25),
+                        blurRadius: 15,
                         offset: const Offset(0, 4),
                       ),
                     ],
@@ -201,24 +252,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange[500],
+                      backgroundColor: const Color(0xFF6366F1),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      minimumSize: Size(double.infinity, isTablet ? 60 : 56),
+                      minimumSize: Size(double.infinity, isTablet ? 64 : 56),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.star_rounded,
-                          size: isTablet ? 24 : 20,
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.workspace_premium_rounded,
+                            size: isTablet ? 20 : 18,
+                          ),
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         Text(
-                          'Get Unlimited Now',
+                          'Upgrade to Premium',
                           style: TextStyle(
                             fontSize: isTablet ? 18 : 16,
                             fontWeight: FontWeight.w600,
@@ -239,26 +297,28 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       'Your Notes',
                       style: TextStyle(
-                        fontSize: isTablet ? 20 : 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        fontSize: isTablet ? 22 : 20,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E293B),
                       ),
                     ),
-                    Spacer(),
+                    const Spacer(),
                     TextButton.icon(
                       onPressed: () {
                         // TODO: Implement view all notes
                       },
-                      icon: Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 16,
-                        color: Colors.orange[600],
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF3B82F6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                      label: Text(
+                      icon: const Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 16,
+                      ),
+                      label: const Text(
                         'View All',
                         style: TextStyle(
-                          color: Colors.orange[600],
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -277,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: isTablet ? 18 : 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: const Color(0xFF475569),
                       ),
                     ),
                   ],
@@ -293,21 +353,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.search_off_rounded,
-                              size: 64,
-                              color: Colors.grey[400],
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Icon(
+                                Icons.search_off_rounded,
+                                size: 48,
+                                color: Colors.grey[400],
+                              ),
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 24),
                             Text(
                               'No notes found',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[600],
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF475569),
                               ),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
                               'Try searching with different keywords',
                               style: TextStyle(
@@ -323,63 +390,75 @@ class _HomeScreenState extends State<HomeScreen> {
                         itemBuilder: (context, index) {
                           final noteTitle = _filteredNotes[index];
                           return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
+                            margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                                width: 1,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
                             child: ListTile(
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: isTablet ? 12 : 8,
-                              ),
+                              contentPadding: EdgeInsets.all(isTablet ? 20 : 16),
                               leading: Container(
-                                width: isTablet ? 50 : 44,
-                                height: isTablet ? 50 : 44,
+                                width: isTablet ? 56 : 48,
+                                height: isTablet ? 56 : 48,
                                 decoration: BoxDecoration(
-                                  color: Colors.orange[100],
-                                  borderRadius: BorderRadius.circular(10),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
-                                  Icons.note_rounded,
-                                  color: Colors.orange[600],
-                                  size: isTablet ? 26 : 22,
+                                  Icons.description_rounded,
+                                  color: Colors.white,
+                                  size: isTablet ? 28 : 24,
                                 ),
                               ),
                               title: Text(
                                 noteTitle,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
-                                  fontSize: isTablet ? 17 : 16,
-                                  color: Colors.black87,
+                                  fontSize: isTablet ? 18 : 16,
+                                  color: const Color(0xFF1E293B),
                                 ),
                               ),
                               subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 4),
+                                padding: const EdgeInsets.only(top: 8),
                                 child: Text(
                                   noteTitle == 'Mic Testing'
                                       ? 'Data Structures: Learn about data structures and algorithms'
                                       : 'Sample note content for demonstration purposes',
                                   style: TextStyle(
-                                    color: Colors.grey[600],
+                                    color: const Color(0xFF64748B),
                                     fontSize: isTablet ? 15 : 14,
-                                    height: 1.3,
+                                    height: 1.4,
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              trailing: Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 16,
-                                color: Colors.grey[400],
+                              trailing: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 16,
+                                  color: const Color(0xFF475569),
+                                ),
                               ),
                               onTap: () {
                                 Navigator.of(context).push(
@@ -398,15 +477,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      // Bottom navigation
+      // Enhanced bottom navigation
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
+          border: const Border(
+            top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
-              offset: const Offset(0, -2),
+              offset: const Offset(0, -5),
             ),
           ],
         ),
@@ -414,19 +496,26 @@ class _HomeScreenState extends State<HomeScreen> {
           child: BottomNavigationBar(
             elevation: 0,
             backgroundColor: Colors.transparent,
-            selectedItemColor: Colors.orange[600],
-            unselectedItemColor: Colors.grey[600],
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+            selectedItemColor: const Color(0xFF3B82F6),
+            unselectedItemColor: const Color(0xFF64748B),
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
             type: BottomNavigationBarType.fixed,
             items: [
               BottomNavigationBarItem(
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.orange[50],
-                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFF3B82F6).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.psychology_rounded,
                     size: 24,
                   ),
@@ -437,8 +526,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
                     Icons.add_rounded,
@@ -457,15 +546,32 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
 
-      // Floating Action Button
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showCreateNoteOptions(context);
-        },
-        backgroundColor: Colors.orange[500],
-        foregroundColor: Colors.white,
-        elevation: 8,
-        child: const Icon(Icons.add_rounded),
+      // Modern Floating Action Button
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF3B82F6).withOpacity(0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: () {
+            _showCreateNoteOptions(context);
+          },
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          child: const Icon(Icons.add_rounded, size: 28),
+        ),
       ),
     );
   }
@@ -476,42 +582,51 @@ class _HomeScreenState extends State<HomeScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: EdgeInsets.only(
-          top: 20,
-          left: 20,
-          right: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          top: 24,
+          left: 24,
+          right: 24,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
+              width: 48,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: const Color(0xFFE2E8F0),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 24),
             Text(
               'Create New Note',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: const Color(0xFF1E293B),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 8),
+            Text(
+              'Choose how you want to create your note',
+              style: TextStyle(
+                fontSize: 16,
+                color: const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 24),
             _buildCreateOption(
               context,
-              icon: Icons.explore,
+              icon: Icons.explore_rounded,
               title: 'Topic Exploration',
               subtitle: 'Explore and learn about any topic',
+              color: const Color(0xFF10B981),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -524,9 +639,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildCreateOption(
               context,
-              icon: Icons.mic,
-              title: 'Recording',
-              subtitle: 'Record audio for notes',
+              icon: Icons.mic_rounded,
+              title: 'Voice Recording',
+              subtitle: 'Record audio for instant notes',
+              color: const Color(0xFFEF4444),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -539,9 +655,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildCreateOption(
               context,
-              icon: Icons.upload_file,
+              icon: Icons.upload_file_rounded,
               title: 'Upload Audio',
-              subtitle: 'Upload audio file for notes',
+              subtitle: 'Upload existing audio files',
+              color: const Color(0xFF8B5CF6),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -554,9 +671,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildCreateOption(
               context,
-              icon: Icons.play_circle_outline,
+              icon: Icons.play_circle_rounded,
               title: 'YouTube Video',
-              subtitle: 'Generate notes from YouTube',
+              subtitle: 'Generate notes from YouTube videos',
+              color: const Color(0xFFF59E0B),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -567,7 +685,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -579,62 +697,71 @@ class _HomeScreenState extends State<HomeScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[200]!),
-            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFFF8FAFC),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(12),
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   icon,
-                  color: Colors.orange[600],
-                  size: 24,
+                  color: color,
+                  size: 28,
                 ),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: const TextStyle(
+                        fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: Color(0xFF1E293B),
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: Color(0xFF64748B),
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Colors.grey[400],
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 16,
+                  color: Color(0xFF475569),
+                ),
               ),
             ],
           ),

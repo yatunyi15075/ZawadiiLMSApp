@@ -12,6 +12,15 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   late TabController _tabController;
   int _selectedTabIndex = 0;
 
+  // Professional color scheme
+  static const Color primaryColor = Color(0xFF2563EB); // Professional blue
+  static const Color secondaryColor = Color(0xFF1E40AF); // Darker blue
+  static const Color accentColor = Color(0xFF3B82F6); // Lighter blue
+  static const Color surfaceColor = Color(0xFFF8FAFC); // Light gray-blue
+  static const Color cardColor = Colors.white;
+  static const Color textPrimary = Color(0xFF1F2937);
+  static const Color textSecondary = Color(0xFF6B7280);
+
   @override
   void initState() {
     super.initState();
@@ -35,16 +44,17 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     final isTablet = screenWidth > 600;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: surfaceColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: cardColor,
+        foregroundColor: textPrimary,
         title: Text(
-          widget.noteTitle ?? 'Mic Testing',
+          widget.noteTitle ?? 'Study Notes',
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: isTablet ? 20 : 18,
+            color: textPrimary,
           ),
         ),
         actions: [
@@ -63,19 +73,19 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.orange[100],
+                  color: primaryColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.smart_toy_rounded,
-                  color: Colors.orange[600],
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  color: primaryColor,
                   size: 20,
                 ),
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(Icons.more_vert, color: textSecondary),
             onPressed: () {
               _showMoreOptions(context);
             },
@@ -84,14 +94,14 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Container(
-            color: Colors.white,
+            color: cardColor,
             child: TabBar(
               controller: _tabController,
               isScrollable: true,
-              indicatorColor: Colors.orange[600],
+              indicatorColor: primaryColor,
               indicatorWeight: 3,
-              labelColor: Colors.orange[600],
-              unselectedLabelColor: Colors.grey[600],
+              labelColor: primaryColor,
+              unselectedLabelColor: textSecondary,
               labelStyle: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: isTablet ? 16 : 14,
@@ -105,7 +115,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 Tab(text: 'Quizzes'),
                 Tab(text: 'Flashcards'),
                 Tab(text: 'Summary'),
-                Tab(text: 'YouTube'),
+                Tab(text: 'Resources'),
               ],
             ),
           ),
@@ -118,7 +128,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           _buildQuizzesTab(),
           _buildFlashcardsTab(),
           _buildSummaryTab(),
-          _buildYouTubeTab(),
+          _buildResourcesTab(),
         ],
       ),
     );
@@ -131,15 +141,15 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: cardColor,
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -148,81 +158,88 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.note_rounded,
-                      color: Colors.orange[600],
-                      size: 20,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.note_rounded,
+                        color: primaryColor,
+                        size: 20,
+                      ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
+                    const SizedBox(width: 12),
+                    const Text(
                       'Note Content',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: textPrimary,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 20),
+                const Text(
                   'Data Structures and Algorithms',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
-                const SizedBox(height: 12),
-                Text(
+                const SizedBox(height: 16),
+                const Text(
                   'Introduction to Data Structures',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
+                const SizedBox(height: 12),
+                const Text(
                   'Data structures are fundamental concepts in computer science that allow us to organize and store data efficiently. They provide a way to manage large amounts of data effectively for uses such as large databases and internet indexing services.',
                   style: TextStyle(
                     fontSize: 16,
-                    height: 1.5,
-                    color: Colors.grey[700],
+                    height: 1.6,
+                    color: textSecondary,
                   ),
                 ),
-                const SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 20),
+                const Text(
                   'Common Data Structures:',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 _buildBulletPoint('Arrays - Linear data structure with fixed size'),
                 _buildBulletPoint('Linked Lists - Dynamic data structure with nodes'),
                 _buildBulletPoint('Stacks - LIFO (Last In, First Out) structure'),
                 _buildBulletPoint('Queues - FIFO (First In, First Out) structure'),
                 _buildBulletPoint('Trees - Hierarchical data structure'),
                 _buildBulletPoint('Graphs - Collection of nodes and edges'),
-                const SizedBox(height: 16),
-                Text(
+                const SizedBox(height: 20),
+                const Text(
                   'Algorithm Complexity',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
+                const SizedBox(height: 12),
+                const Text(
                   'Understanding time and space complexity is crucial for writing efficient algorithms. Big O notation helps us analyze the performance of algorithms.',
                   style: TextStyle(
                     fontSize: 16,
-                    height: 1.5,
-                    color: Colors.grey[700],
+                    height: 1.6,
+                    color: textSecondary,
                   ),
                 ),
               ],
@@ -235,26 +252,26 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   Widget _buildBulletPoint(String text) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, bottom: 4),
+      padding: const EdgeInsets.only(left: 16, bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 6,
             height: 6,
-            margin: const EdgeInsets.only(top: 8, right: 12),
-            decoration: BoxDecoration(
-              color: Colors.orange[600],
+            margin: const EdgeInsets.only(top: 8, right: 16),
+            decoration: const BoxDecoration(
+              color: primaryColor,
               shape: BoxShape.circle,
             ),
           ),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
-                height: 1.5,
-                color: Colors.grey[700],
+                height: 1.6,
+                color: textSecondary,
               ),
             ),
           ),
@@ -269,40 +286,41 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: cardColor,
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.quiz_rounded,
-                      color: Colors.orange[600],
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Practice Quizzes',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF059669).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.quiz_rounded,
+                    color: Color(0xFF059669),
+                    size: 20,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(width: 12),
+                const Text(
+                  'Practice Quizzes',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: textPrimary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -314,28 +332,28 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
+                    contentPadding: const EdgeInsets.all(20),
                     leading: Container(
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: Colors.blue[100],
-                        borderRadius: BorderRadius.circular(10),
+                        color: const Color(0xFF059669).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.quiz,
-                        color: Colors.blue[600],
+                        color: Color(0xFF059669),
                         size: 24,
                       ),
                     ),
@@ -344,25 +362,26 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
+                        color: textPrimary,
                       ),
                     ),
-                    subtitle: Text(
+                    subtitle: const Text(
                       '10 questions • 15 minutes',
                       style: TextStyle(
-                        color: Colors.grey[600],
+                        color: textSecondary,
                         fontSize: 14,
                       ),
                     ),
                     trailing: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.green[100],
-                        borderRadius: BorderRadius.circular(12),
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
+                      child: const Text(
                         'Start',
                         style: TextStyle(
-                          color: Colors.green[700],
+                          color: Colors.white,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
@@ -387,40 +406,47 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: cardColor,
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.style_rounded,
-                  color: Colors.orange[600],
-                  size: 20,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.style_rounded,
+                    color: Color(0xFF7C3AED),
+                    size: 20,
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Text(
+                const SizedBox(width: 12),
+                const Text(
                   'Flashcards',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
                 const Spacer(),
-                Text(
+                const Text(
                   '12 cards',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey[600],
+                    color: textSecondary,
                   ),
                 ),
               ],
@@ -448,13 +474,13 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                 
                 return Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -462,33 +488,40 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                     onTap: () {
                       // TODO: Show flashcard detail
                     },
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.lightbulb_outline,
-                            color: Colors.purple[600],
-                            size: 32,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C3AED).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.lightbulb_outline,
+                              color: Color(0xFF7C3AED),
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             flashcards[index]['term']!,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              color: textPrimary,
                             ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             flashcards[index]['definition']!,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: textSecondary,
                             ),
                             textAlign: TextAlign.center,
                             maxLines: 2,
@@ -512,59 +545,66 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       padding: const EdgeInsets.all(16.0),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: cardColor,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.summarize_rounded,
-                    color: Colors.orange[600],
-                    size: 20,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDC2626).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.summarize_rounded,
+                      color: Color(0xFFDC2626),
+                      size: 20,
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
+                  const SizedBox(width: 12),
+                  const Text(
                     'Summary',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: textPrimary,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange[200]!),
+                  color: primaryColor.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: primaryColor.withOpacity(0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Key Points:',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
                     _buildSummaryPoint('Data structures organize and store data efficiently'),
                     _buildSummaryPoint('Arrays, lists, stacks, queues, trees, and graphs are common types'),
                     _buildSummaryPoint('Algorithm complexity is measured using Big O notation'),
@@ -573,15 +613,15 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[200]!),
+                  color: const Color(0xFF059669).withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF059669).withOpacity(0.2)),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -589,16 +629,16 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: Colors.black87,
+                        color: textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 12),
                     Text(
                       'This note covers fundamental data structures and their applications in computer science. Understanding these concepts is essential for efficient programming and problem-solving.',
                       style: TextStyle(
                         fontSize: 14,
-                        height: 1.5,
-                        color: Colors.grey[700],
+                        height: 1.6,
+                        color: textSecondary,
                       ),
                     ),
                   ],
@@ -613,26 +653,26 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
 
   Widget _buildSummaryPoint(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 6,
             height: 6,
-            margin: const EdgeInsets.only(top: 6, right: 12),
-            decoration: BoxDecoration(
-              color: Colors.orange[600],
+            margin: const EdgeInsets.only(top: 8, right: 16),
+            decoration: const BoxDecoration(
+              color: primaryColor,
               shape: BoxShape.circle,
             ),
           ),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 14,
-                height: 1.4,
-                color: Colors.grey[700],
+                height: 1.6,
+                color: textSecondary,
               ),
             ),
           ),
@@ -641,38 +681,45 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildYouTubeTab() {
+  Widget _buildResourcesTab() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
+              color: cardColor,
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.play_circle_outline,
-                  color: Colors.red[600],
-                  size: 20,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.library_books_rounded,
+                    color: Color(0xFFDC2626),
+                    size: 20,
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Related Videos',
+                const SizedBox(width: 12),
+                const Text(
+                  'Learning Resources',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: textPrimary,
                   ),
                 ),
               ],
@@ -683,61 +730,89 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             child: ListView.builder(
               itemCount: 4,
               itemBuilder: (context, index) {
-                final videos = [
-                  'Introduction to Data Structures',
-                  'Arrays and Linked Lists Explained',
-                  'Stack and Queue Implementation',
-                  'Tree Data Structures Tutorial',
+                final resources = [
+                  {
+                    'title': 'Introduction to Data Structures',
+                    'type': 'Video Tutorial',
+                    'duration': '12:45',
+                    'icon': Icons.play_circle_outline,
+                    'color': const Color(0xFFDC2626),
+                  },
+                  {
+                    'title': 'Arrays and Linked Lists Guide',
+                    'type': 'Article',
+                    'duration': '8 min read',
+                    'icon': Icons.article_outlined,
+                    'color': primaryColor,
+                  },
+                  {
+                    'title': 'Stack and Queue Implementation',
+                    'type': 'Code Examples',
+                    'duration': '15 examples',
+                    'icon': Icons.code_rounded,
+                    'color': const Color(0xFF059669),
+                  },
+                  {
+                    'title': 'Tree Data Structures Deep Dive',
+                    'type': 'Interactive Tutorial',
+                    'duration': '25 min',
+                    'icon': Icons.psychology_rounded,
+                    'color': const Color(0xFF7C3AED),
+                  },
                 ];
+                
+                final resource = resources[index];
                 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
+                    contentPadding: const EdgeInsets.all(20),
                     leading: Container(
-                      width: 60,
-                      height: 45,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        color: Colors.red[100],
-                        borderRadius: BorderRadius.circular(8),
+                        color: (resource['color'] as Color).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
-                        Icons.play_arrow,
-                        color: Colors.red[600],
+                        resource['icon'] as IconData,
+                        color: resource['color'] as Color,
                         size: 24,
                       ),
                     ),
                     title: Text(
-                      videos[index],
+                      resource['title'] as String,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
+                        color: textPrimary,
                       ),
                     ),
                     subtitle: Text(
-                      '12:45 • 2.1M views',
-                      style: TextStyle(
-                        color: Colors.grey[600],
+                      '${resource['type']} • ${resource['duration']}',
+                      style: const TextStyle(
+                        color: textSecondary,
                         fontSize: 14,
                       ),
                     ),
-                    trailing: Icon(
-                      Icons.more_vert,
-                      color: Colors.grey[400],
+                    trailing: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: textSecondary,
+                      size: 16,
                     ),
                     onTap: () {
-                      // TODO: Open YouTube video
+                      // TODO: Open resource
                     },
                   ),
                 );
@@ -754,8 +829,8 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
+        decoration: const BoxDecoration(
+          color: cardColor,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(20),
@@ -772,24 +847,24 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             ),
             const SizedBox(height: 20),
             ListTile(
-              leading: Icon(Icons.edit, color: Colors.orange[600]),
-              title: const Text('Edit Note'),
+              leading: const Icon(Icons.edit_rounded, color: primaryColor),
+              title: const Text('Edit Note', style: TextStyle(color: textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 // TODO: Implement edit functionality
               },
             ),
             ListTile(
-              leading: Icon(Icons.share, color: Colors.blue[600]),
-              title: const Text('Share'),
+              leading: const Icon(Icons.share_rounded, color: Color(0xFF059669)),
+              title: const Text('Share', style: TextStyle(color: textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 // TODO: Implement share functionality
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete, color: Colors.red[600]),
-              title: const Text('Delete'),
+              leading: const Icon(Icons.delete_rounded, color: Color(0xFFDC2626)),
+              title: const Text('Delete', style: TextStyle(color: textPrimary)),
               onTap: () {
                 Navigator.pop(context);
                 // TODO: Implement delete functionality
@@ -813,6 +888,13 @@ class AIChatScreen extends StatefulWidget {
 class _AIChatScreenState extends State<AIChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final List<ChatMessage> _messages = [];
+
+  // Professional color scheme (same as above)
+  static const Color primaryColor = Color(0xFF2563EB);
+  static const Color surfaceColor = Color(0xFFF8FAFC);
+  static const Color cardColor = Colors.white;
+  static const Color textPrimary = Color(0xFF1F2937);
+  static const Color textSecondary = Color(0xFF6B7280);
 
   @override
   void dispose() {
@@ -844,32 +926,33 @@ class _AIChatScreenState extends State<AIChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: surfaceColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        backgroundColor: cardColor,
+        foregroundColor: textPrimary,
         title: Row(
           children: [
             Container(
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.orange[100],
+                color: primaryColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.smart_toy_rounded,
-                color: Colors.orange[600],
+              child: const Icon(
+                Icons.psychology_rounded,
+                color: primaryColor,
                 size: 20,
               ),
             ),
             const SizedBox(width: 12),
             const Text(
-              'AI Assistant',
+              'AI Study Assistant',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 18,
+                color: textPrimary,
               ),
             ),
           ],
@@ -887,7 +970,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           width: 80,
                           height: 80,
                           decoration: BoxDecoration(
-                            color: Colors.orange[100],
+                            color: primaryColor.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(

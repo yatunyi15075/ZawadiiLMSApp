@@ -13,12 +13,12 @@ class RoleSelectionScreen extends StatefulWidget {
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? selectedRole;
 
-  final List<Map<String, String>> roles = [
-    {'name': 'Student', 'icon': 'student_icon.png'},
-    {'name': 'High School', 'icon': 'high_school_icon.png'},
-    {'name': 'Primary School', 'icon': 'primary_school_icon.png'},
-    {'name': 'Teacher', 'icon': 'teacher_icon.png'},
-    {'name': 'Exploring', 'icon': 'exploring_icon.png'},
+  final List<Map<String, dynamic>> roles = [
+    {'name': 'Student', 'icon': Icons.school},
+    {'name': 'High School', 'icon': Icons.school_outlined},
+    {'name': 'Primary School', 'icon': Icons.child_care},
+    {'name': 'Teacher', 'icon': Icons.person_4},
+    {'name': 'Exploring', 'icon': Icons.explore},
   ];
 
   @override
@@ -65,10 +65,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Image.asset(
-                              'assets/icons/${role['icon']}',
-                              width: 50,
-                              height: 50,
+                            Icon(
+                              role['icon'],
+                              size: 50,
+                              color: selectedRole == role['name']
+                                 ? Colors.blue
+                                 : Colors.grey.shade600,
                             ),
                             const SizedBox(height: 10),
                             Text(
@@ -77,6 +79,9 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                                 color: selectedRole == role['name']
                                    ? Colors.blue
                                    : Colors.black,
+                                fontWeight: selectedRole == role['name']
+                                   ? FontWeight.bold
+                                   : FontWeight.normal,
                               ),
                             ),
                           ],
