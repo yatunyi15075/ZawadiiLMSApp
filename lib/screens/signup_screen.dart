@@ -3,77 +3,52 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/clerk_service.dart';
 import '../screens/role_selection_screen.dart';
-import '../screens/signup_screen.dart';
 import '../widgets/custom_button.dart';
 
-class SignInScreen extends StatefulWidget {
-  const SignInScreen({Key? key}) : super(key: key);
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({Key? key}) : super(key: key);
 
   @override
-  State<SignInScreen> createState() => _SignInScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _SignInScreenState extends State<SignInScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool isLoading = false;
   bool _obscurePassword = true;
-
-  // Demo credentials - change these to whatever you want
-  static const String DEMO_EMAIL = 'demo@example.com';
-  static const String DEMO_PASSWORD = 'demo123';
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  bool _isDemoCredentials() {
-    return _emailController.text.trim().toLowerCase() == DEMO_EMAIL.toLowerCase() &&
-           _passwordController.text == DEMO_PASSWORD;
-  }
-
-  Future<void> _handleDemoLogin() async {
-    // Store demo data in SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', 'demo_token_12345');
-    await prefs.setString('role', 'parent'); // or whatever role you want for demo
-
-    // Show success message
-    _showSuccessSnackBar('Demo login successful!');
-
-    // Navigate to role selection screen
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-    );
-  }
-
-  Future<void> _signIn() async {
+  Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         isLoading = true;
       });
 
       try {
-        // Check if demo credentials are being used
-        if (_isDemoCredentials()) {
-          // Small delay to show loading animation
-          await Future.delayed(const Duration(milliseconds: 500));
-          
-          if (mounted) {
-            setState(() {
-              isLoading = false;
-            });
-            await _handleDemoLogin();
-          }
-          return;
+        print('Starting registration process...');
+        
+        // Check connection first
+        final hasConnection = await ClerkService.checkConnection();
+        if (!hasConnection) {
+          throw Exception('Cannot connect to server. Please check your internet connection.');
         }
 
-        // Use ClerkService for actual login
-        final token = await ClerkService.login(
+        // Use ClerkService for registration
+        final token = await ClerkService.register(
+          _nameController.text.trim(),
           _emailController.text.trim(),
           _passwordController.text,
         );
@@ -83,24 +58,26 @@ class _SignInScreenState extends State<SignInScreen> {
             isLoading = false;
           });
 
-          if (token != null) {
+          if (token != null && token.isNotEmpty) {
             // Store token in SharedPreferences
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('token', token);
             await prefs.setString('role', 'user'); // Default role
 
             // Show success message
-            _showSuccessSnackBar('Logged in successfully!');
+            _showSuccessSnackBar('Registration successful!');
 
             // Navigate to role selection screen
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
             );
           } else {
-            _showError('Login failed. Please check your credentials.');
+            _showError('Registration failed. Please try again.');
           }
         }
       } catch (error) {
+        print('Registration error caught: $error');
+        
         if (mounted) {
           setState(() {
             isLoading = false;
@@ -113,6 +90,14 @@ class _SignInScreenState extends State<SignInScreen> {
             errorMessage = 'No internet connection. Please check your network.';
           } else if (error.toString().contains('TimeoutException')) {
             errorMessage = 'Connection timeout. Please try again.';
+          } else if (error.toString().contains('email already exists') || 
+                     error.toString().contains('User with this email already exists')) {
+            errorMessage = 'Email already exists. Please use a different email.';
+          } else if (error.toString().contains('Validation failed')) {
+            errorMessage = 'Please check your input and try again.';
+          } else if (error.toString().contains('Exception: ')) {
+            // Extract the actual error message
+            errorMessage = error.toString().replaceFirst('Exception: ', '');
           }
           
           _showError(errorMessage);
@@ -141,10 +126,8 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  void _navigateToSignUp() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SignUpScreen()),
-    );
+  void _navigateToSignIn() {
+    Navigator.of(context).pop(); // Go back to Sign In
   }
 
   @override
@@ -171,42 +154,31 @@ class _SignInScreenState extends State<SignInScreen> {
                         ),
                         const SizedBox(height: 20),
                         const Text(
-                          'Sign in to your account', 
+                          'Create your account', 
                           style: TextStyle(fontSize: 18, color: Colors.grey)
                         ),
-                        const SizedBox(height: 20),
-                        
-                        // Demo info card
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 24),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.orange.shade200),
+                        const SizedBox(height: 40),
+                        TextFormField(
+                          controller: _nameController,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
                           ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: Colors.orange.shade600,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Demo: Use $DEMO_EMAIL / $DEMO_PASSWORD',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.orange.shade800,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
+                          decoration: const InputDecoration(
+                            labelText: 'Full Name', 
+                            border: OutlineInputBorder()
                           ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter your full name';
+                            }
+                            if (value.length < 2) {
+                              return 'Name must be at least 2 characters';
+                            }
+                            return null;
+                          },
                         ),
-                        
+                        const SizedBox(height: 20),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -254,20 +226,46 @@ class _SignInScreenState extends State<SignInScreen> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 20),
+                        TextFormField(
+                          controller: _confirmPasswordController,
+                          obscureText: _obscureConfirmPassword,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 16,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Confirm Password',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureConfirmPassword ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please confirm your password';
+                            }
+                            if (value != _passwordController.text) {
+                              return 'Passwords do not match';
+                            }
+                            return null;
+                          },
+                        ),
                         const SizedBox(height: 30),
-                        CustomButton(text: "Sign In", onPressed: _signIn),
+                        CustomButton(text: "Sign Up", onPressed: _signUp),
                         const SizedBox(height: 30),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
-                              "Don't have an account? ", 
+                              "Already have an account? ", 
                               style: TextStyle(color: Colors.grey)
                             ),
                             TextButton(
-                              onPressed: _navigateToSignUp, 
+                              onPressed: _navigateToSignIn, 
                               child: const Text(
-                                "Sign Up", 
+                                "Sign In", 
                                 style: TextStyle(
                                   color: Colors.blue, 
                                   fontWeight: FontWeight.bold

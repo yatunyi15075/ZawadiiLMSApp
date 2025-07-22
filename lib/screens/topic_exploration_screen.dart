@@ -30,7 +30,7 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
-  static const String baseUrl = 'http://localhost:5000';
+  static const String baseUrl = 'https://zawadi-lms.onrender.com';
 
   @override
   void initState() {

@@ -1,9 +1,20 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Add the missing primaryColor static property
+  static const Color backgroundColor = Color(0xFF1E1E1E); // dark background
   static const Color primaryColor = Colors.blue;
-  
+
+  static const TextStyle bodyTextStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 16,
+  );
+
+  static const TextStyle headlineTextStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+  );
+
   static ThemeData get lightTheme {
     return ThemeData(
       primarySwatch: Colors.blue,
@@ -18,24 +29,15 @@ class AppTheme {
           fontWeight: FontWeight.bold,
         ),
       ),
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         headlineLarge: TextStyle(
-          color: Colors.blue.shade700,
+          color: Colors.blue,
           fontSize: 24,
           fontWeight: FontWeight.bold,
         ),
-        bodyMedium: const TextStyle(
+        bodyMedium: TextStyle(
           color: Colors.black87,
           fontSize: 16,
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
         ),
       ),
     );

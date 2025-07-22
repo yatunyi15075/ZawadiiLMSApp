@@ -55,7 +55,7 @@ class _TranslationScreenState extends State<TranslationScreen> {
           children: [
             Text(
               'Languages support',
-              style: Theme.of(context).textTheme.headline6,
+              // style: Theme.of(context).textTheme.headline6,
             ),
             SizedBox(height: 16),
             // Source Language Dropdown

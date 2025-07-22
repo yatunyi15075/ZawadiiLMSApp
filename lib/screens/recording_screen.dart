@@ -30,7 +30,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   late Animation<double> _pulseAnimation;
   late Animation<double> _waveAnimation;
 
-  static const String baseUrl = 'http://localhost:5000';
+  static const String baseUrl = 'https://zawadi-lms.onrender.com';
 
   final List<Map<String, String>> _languages = [
     {'code': 'en-US', 'name': 'English (US)', 'flag': '🇺🇸'},

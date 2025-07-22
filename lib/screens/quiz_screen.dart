@@ -17,7 +17,6 @@ class _QuizScreenState extends State<QuizScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Question number and progress
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -26,15 +25,12 @@ class _QuizScreenState extends State<QuizScreen> {
                   Text(
                     'Question 1/10',
                     style: AppTheme.bodyTextStyle.copyWith(
-                      color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
-
-            // Expanded space for question
             Expanded(
               child: Center(
                 child: Padding(
@@ -42,37 +38,29 @@ class _QuizScreenState extends State<QuizScreen> {
                   child: Text(
                     'Explain the photosynthesis like I\'m five years old?',
                     textAlign: TextAlign.center,
-                    style: AppTheme.headlineTextStyle.copyWith(
-                      color: Colors.white,
-                      fontSize: 24,
-                    ),
+                    style: AppTheme.headlineTextStyle.copyWith(fontSize: 24),
                   ),
                 ),
               ),
             ),
-
-            // Bottom control row
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // Mic button
                   CircleAvatar(
                     backgroundColor: Colors.white.withOpacity(0.2),
                     child: IconButton(
-                      icon: Icon(Icons.mic, color: Colors.white),
+                      icon: const Icon(Icons.mic, color: Colors.white),
                       onPressed: () {
-                        // Implement recording functionality
+                        // Add recording logic
                       },
                     ),
                   ),
-
-                  // Hint button
                   CircleAvatar(
                     backgroundColor: Colors.white.withOpacity(0.2),
                     child: IconButton(
-                      icon: Icon(Icons.lightbulb_outline, color: Colors.white),
+                      icon: const Icon(Icons.lightbulb_outline, color: Colors.white),
                       onPressed: () {
                         Navigator.push(
                           context,

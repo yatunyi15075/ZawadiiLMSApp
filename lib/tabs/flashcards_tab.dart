@@ -44,7 +44,7 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5000/api/flashcards/${widget.noteId}'),
+        Uri.parse('https://zawadi-lms.onrender.com/api/flashcards/${widget.noteId}'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -85,7 +85,7 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5000/api/flashcards/${widget.noteId}/generate'),
+        Uri.parse('https://zawadi-lms.onrender.com/api/flashcards/${widget.noteId}/generate'),
         headers: {'Content-Type': 'application/json'},
       );
 

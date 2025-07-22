@@ -24,6 +24,11 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Choose Your Role'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20.0),
@@ -58,9 +63,12 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: selectedRole == role['name']
-                             ? Colors.blue.shade100
-                             : Colors.grey.shade200,
+                              ? Colors.blue.shade100
+                              : Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(10),
+                          border: selectedRole == role['name']
+                              ? Border.all(color: Colors.blue, width: 2)
+                              : null,
                         ),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -69,19 +77,19 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                               role['icon'],
                               size: 50,
                               color: selectedRole == role['name']
-                                 ? Colors.blue
-                                 : Colors.grey.shade600,
+                                  ? Colors.blue
+                                  : Colors.grey.shade600,
                             ),
                             const SizedBox(height: 10),
                             Text(
                               role['name']!,
                               style: TextStyle(
                                 color: selectedRole == role['name']
-                                   ? Colors.blue
-                                   : Colors.black,
+                                    ? Colors.blue
+                                    : Colors.black,
                                 fontWeight: selectedRole == role['name']
-                                   ? FontWeight.bold
-                                   : FontWeight.normal,
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                           ],
@@ -95,24 +103,22 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               CustomButton(
                 text: 'Continue',
                 onPressed: selectedRole != null
-                   ? () {
-                      if (selectedRole == 'Primary School') {
-                        // Navigate to parent contact details screen for Primary School
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const ParentContactDetailsScreen(),
-                          ),
-                        );
-                      } else {
-                        // Navigate directly to home screen for all other roles
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const HomeScreen(),
-                          ),
-                        );
+                    ? () {
+                        if (selectedRole == 'Primary School') {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const ParentContactDetailsScreen(),
+                            ),
+                          );
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => const HomeScreen(),
+                            ),
+                          );
+                        }
                       }
-                    }
-                  : null,
+                    : null,
               ),
             ],
           ),

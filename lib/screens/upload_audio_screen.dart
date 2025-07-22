@@ -31,7 +31,7 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
   ];
 
   // Base URL for your API - update this to match your backend
-  static const String baseUrl = 'http://localhost:5000'; // Change this to your actual backend URL
+  static const String baseUrl = 'https://zawadi-lms.onrender.com'; // Change this to your actual backend URL
 
   Future<void> _pickAudioFile() async {
     try {

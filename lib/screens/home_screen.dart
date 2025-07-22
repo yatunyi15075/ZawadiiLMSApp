@@ -74,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _errorMessage = '';
 
   // Replace with your backend URL
-  static const String _baseUrl = 'http://localhost:5000'; // Update this to your backend URL
+  static const String _baseUrl = 'https://zawadi-lms.onrender.com'; // Update this to your backend URL
   static const String _userId = 'your-user-id'; // Replace with actual user ID from your auth system
 
   @override

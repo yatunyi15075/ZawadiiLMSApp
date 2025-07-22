@@ -43,7 +43,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
 
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:5000/api/quizzes/${widget.noteId}'),
+        Uri.parse('https://zawadi-lms.onrender.com/api/quizzes/${widget.noteId}'),
         headers: {'Content-Type': 'application/json'},
       );
 
@@ -85,7 +85,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5000/api/quizzes/${widget.noteId}/generate'),
+        Uri.parse('https://zawadi-lms.onrender.com/api/quizzes/${widget.noteId}/generate'),
         headers: {'Content-Type': 'application/json'},
       );
 

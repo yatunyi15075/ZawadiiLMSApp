@@ -53,7 +53,7 @@ class _NotesTabState extends State<NotesTab> {
       });
 
       final response = await http.get(
-        Uri.parse('http://localhost:5000/api/notes/${widget.noteId}'),
+        Uri.parse('https://zawadi-lms.onrender.com/api/notes/${widget.noteId}'),
         headers: {'Content-Type': 'application/json'},
       );
 

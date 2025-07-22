@@ -60,7 +60,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:5000/api/zawadii-bot/generate'),
+        Uri.parse('https://zawadi-lms.onrender.com/api/zawadii-bot/generate'),
         headers: {
           'Content-Type': 'application/json',
         },
