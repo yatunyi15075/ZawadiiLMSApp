@@ -50,8 +50,30 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
     _animationController.forward();
   }
 
+  // Get stored authentication token
+  Future<String?> _getAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('token');
+    } catch (e) {
+      print('Error getting auth token: $e');
+      return null;
+    }
+  }
+
+  // Get stored user ID
+  Future<String?> _getUserId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('userId');
+    } catch (e) {
+      print('Error getting user ID: $e');
+      return null;
+    }
+  }
+
   Future<void> _handleGenerateNotes() async {
-    if (_selectedTopic == null && _topicController.text.isEmpty) {
+    if (_selectedTopic == null && _topicController.text.trim().isEmpty) {
       _showSnackBar('Please select or enter a topic', isError: true);
       return;
     }
@@ -61,19 +83,30 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId');
-      final currentFolderId = prefs.getString('currentFolderId');
-
-      if (userId == null) {
-        throw Exception('User ID is required but missing!');
+      final token = await _getAuthToken();
+      final userId = await _getUserId();
+      
+      // Simplified authentication check - no token verification route
+      if (token == null || userId == null) {
+        _showSnackBar('Please sign in to generate notes', isError: true);
+        setState(() {
+          _isLoading = false;
+        });
+        return;
       }
 
-      final topic = _selectedTopic ?? _topicController.text;
+      final topic = _selectedTopic ?? _topicController.text.trim();
+
+      // Get current folder ID
+      final prefs = await SharedPreferences.getInstance();
+      final currentFolderId = prefs.getString('currentFolderId');
 
       final response = await http.post(
         Uri.parse('$baseUrl/api/notes/generate-notes'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({
           'topic': topic.isEmpty ? 'Generate study notes' : topic,
           'dialect': _selectedDialect,
@@ -82,29 +115,47 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
         }),
       );
 
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Failed to generate notes: ${response.statusCode}');
-      }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final notes = data['notes'] ?? 'No notes generated.';
 
-      final data = jsonDecode(response.body);
-      final notes = data['notes'] ?? 'No notes generated.';
+        if (data['noteId'] != null) {
+          // Navigate to the notes screen with the generated notes
+          Navigator.pushNamed(
+            context,
+            '/notes/${data['noteId']}',
+            arguments: {
+              'notes': notes,
+              'noteId': data['noteId'],
+              'folderId': data['folderId'],
+            },
+          );
+        } else {
+          // Show notes in dialog if no noteId returned
+          _showNotesDialog(notes);
+        }
 
-      if (data['noteId'] != null) {
-        Navigator.pushNamed(
-          context,
-          '/notes/${data['noteId']}',
-          arguments: {
-            'notes': notes,
-            'noteId': data['noteId'],
-            'folderId': data['folderId'],
-          },
-        );
+        // Show success message
+        _showSnackBar('Notes generated successfully!', isError: false);
+      } else if (response.statusCode == 401) {
+        // Handle unauthorized access without redirecting to verify-token
+        _showSnackBar('Session expired. Please sign in again.', isError: true);
+        // Clear stored tokens
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('token');
+        await prefs.remove('userId');
       } else {
-        _showNotesDialog(notes);
+        final errorData = jsonDecode(response.body);
+        final errorMessage = errorData['message'] ?? 'Failed to generate notes';
+        throw Exception(errorMessage);
       }
-    } catch (error) {
-      print('Error generating notes: $error');
-      _showSnackBar('Failed to generate notes: $error', isError: true);
+
+    } catch (e) {
+      String errorMsg = e.toString().replaceAll('Exception: ', '');
+      if (errorMsg.contains('SocketException') || errorMsg.contains('TimeoutException')) {
+        errorMsg = 'Network error. Please check your connection.';
+      }
+      _showSnackBar('Failed to generate notes: $errorMsg', isError: true);
     } finally {
       setState(() {
         _isLoading = false;
@@ -115,11 +166,12 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
   void _showNotesDialog(String notes) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Container(
-            constraints: const BoxConstraints(maxHeight: 600),
+            constraints: const BoxConstraints(maxHeight: 600, maxWidth: 500),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -140,13 +192,21 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                     children: [
                       const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Generated Notes',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      const Expanded(
+                        child: Text(
+                          'Generated Notes',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
                     ],
                   ),
@@ -154,7 +214,7 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                 Flexible(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(20),
-                    child: Text(
+                    child: SelectableText(
                       notes,
                       style: const TextStyle(fontSize: 16, height: 1.5),
                     ),
@@ -162,20 +222,41 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C63FF),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Close', style: TextStyle(fontSize: 16)),
                         ),
                       ),
-                      child: const Text('Close', style: TextStyle(fontSize: 16)),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showSnackBar('Notes ready for use!', isError: false);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6C63FF),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text('Got it!', style: TextStyle(fontSize: 16)),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -189,11 +270,22 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
         backgroundColor: isError ? Colors.red[400] : Colors.green[400],
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
+        duration: Duration(seconds: isError ? 4 : 2),
       ),
     );
   }
@@ -349,12 +441,13 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                   ),
                   const SizedBox(height: 16),
                   
+                  // Fixed grid with proper aspect ratio to avoid overflow
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 1.5,
+                      childAspectRatio: 1.8,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
                     ),
@@ -374,7 +467,7 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: isSelected ? topic['color'] : Colors.white,
                             borderRadius: BorderRadius.circular(16),
@@ -394,21 +487,26 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 topic['icon'],
-                                size: 32,
+                                size: 28,
                                 color: isSelected ? Colors.white : topic['color'],
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                topic['name'],
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected ? Colors.white : const Color(0xFF2D3436),
+                              const SizedBox(height: 6),
+                              Flexible(
+                                child: Text(
+                                  topic['name'],
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.white : const Color(0xFF2D3436),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
@@ -445,8 +543,15 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                     ),
                     child: TextField(
                       controller: _topicController,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Enter a topic you want to explore...',
+                        hintStyle: const TextStyle(
+                          color: Colors.grey,
+                        ),
                         prefixIcon: const Icon(Icons.search, color: Color(0xFF6C63FF)),
                         filled: true,
                         fillColor: Colors.white,
@@ -460,7 +565,6 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                         ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                       ),
-                      style: const TextStyle(fontSize: 16),
                       onChanged: (value) {
                         if (value.isNotEmpty) {
                           setState(() {
@@ -478,12 +582,14 @@ class _TopicExplorationScreenState extends State<TopicExplorationScreen>
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: (_selectedTopic != null || _topicController.text.isNotEmpty) && !_isLoading
+                      onPressed: (_selectedTopic != null || _topicController.text.trim().isNotEmpty) && !_isLoading
                           ? _handleGenerateNotes
                           : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF6C63FF),
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey[300],
+                        disabledForegroundColor: Colors.grey[600],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),

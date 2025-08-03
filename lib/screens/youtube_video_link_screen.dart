@@ -31,6 +31,24 @@ class _YouTubeVideoLinkScreenState extends State<YouTubeVideoLinkScreen> {
   // Base URL for your API - update this to match your backend
   static const String baseUrl = 'https://zawadi-lms.onrender.com'; // Change this to your actual backend URL
 
+  // Get stored authentication token (same as notifications)
+  Future<String?> _getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  // Get userId from token or SharedPreferences
+  Future<String?> _getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('userId');
+  }
+
+  // Get current folder ID
+  Future<String?> _getCurrentFolderId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('currentFolderId');
+  }
+
   Future<void> _pasteFromClipboard() async {
     try {
       ClipboardData? data = await Clipboard.getData('text/plain');
@@ -78,10 +96,24 @@ class _YouTubeVideoLinkScreenState extends State<YouTubeVideoLinkScreen> {
     });
 
     try {
-      // Get userId and currentFolderId from SharedPreferences (similar to localStorage in web)
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? userId = prefs.getString('userId');
-      String? currentFolderId = prefs.getString('currentFolderId');
+      // Get authentication token (same as notifications)
+      final token = await _getAuthToken();
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No authentication token found. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isProcessing = false;
+        });
+        return;
+      }
+
+      // Get userId and currentFolderId
+      final userId = await _getUserId();
+      final currentFolderId = await _getCurrentFolderId();
 
       if (userId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -90,6 +122,9 @@ class _YouTubeVideoLinkScreenState extends State<YouTubeVideoLinkScreen> {
             backgroundColor: Colors.red,
           ),
         );
+        setState(() {
+          _isProcessing = false;
+        });
         return;
       }
 
@@ -104,11 +139,12 @@ class _YouTubeVideoLinkScreenState extends State<YouTubeVideoLinkScreen> {
         requestBody['folderId'] = currentFolderId;
       }
 
-      // Make API call to process YouTube video
+      // Make API call to process YouTube video with Bearer token authentication
       final response = await http.post(
         Uri.parse('$baseUrl/api/youtube/process-video'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token', // Added Bearer token authentication
         },
         body: json.encode(requestBody),
       );
@@ -123,6 +159,9 @@ class _YouTubeVideoLinkScreenState extends State<YouTubeVideoLinkScreen> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // Clear the input field after successful processing
+        _linkController.clear();
 
         // Navigate to notes screen or show notes
         if (data['noteId'] != null) {
@@ -141,6 +180,14 @@ class _YouTubeVideoLinkScreenState extends State<YouTubeVideoLinkScreen> {
           _showNotesDialog(data['notes'] ?? 'No notes generated.');
         }
 
+      } else if (response.statusCode == 401) {
+        // Handle unauthorized access
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       } else {
         final errorData = json.decode(response.body);
         throw Exception(errorData['message'] ?? 'Failed to process YouTube URL');

@@ -59,9 +59,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           });
 
           if (token != null && token.isNotEmpty) {
-            // Store token in SharedPreferences
+            // Token and userId are already stored in ClerkService.register()
+            // Store additional role if needed
             final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('token', token);
             await prefs.setString('role', 'user'); // Default role
 
             // Show success message

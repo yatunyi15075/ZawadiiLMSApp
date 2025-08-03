@@ -37,18 +37,42 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _handleDemoLogin() async {
-    // Store demo data in SharedPreferences
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('token', 'demo_token_12345');
-    await prefs.setString('role', 'parent'); // or whatever role you want for demo
+    try {
+      // Store demo data in SharedPreferences with consistent structure
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Clear any existing data first
+      await prefs.clear();
+      
+      // Store demo credentials with same structure as real login
+      await prefs.setString('token', 'demo_token_12345');
+      await prefs.setString('userId', 'demo_user_123');
+      await prefs.setString('role', 'user'); // Changed from 'parent' to 'user' for consistency
+      await prefs.setString('name', 'Demo User');
+      await prefs.setString('email', DEMO_EMAIL);
 
-    // Show success message
-    _showSuccessSnackBar('Demo login successful!');
+      // Verify the data was stored
+      final storedToken = prefs.getString('token');
+      final storedUserId = prefs.getString('userId');
+      
+      print('Demo login - Token stored: $storedToken');
+      print('Demo login - UserId stored: $storedUserId');
 
-    // Navigate to role selection screen
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-    );
+      if (storedToken != null && storedUserId != null) {
+        // Show success message
+        _showSuccessSnackBar('Demo login successful!');
+
+        // Navigate to role selection screen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+        );
+      } else {
+        throw Exception('Failed to store demo credentials');
+      }
+    } catch (error) {
+      print('Demo login error: $error');
+      _showError('Demo login failed. Please try again.');
+    }
   }
 
   Future<void> _signIn() async {
@@ -72,8 +96,12 @@ class _SignInScreenState extends State<SignInScreen> {
           return;
         }
 
+        // Clear any existing data before new login
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
+
         // Use ClerkService for actual login
-        final token = await ClerkService.login(
+        final loginResult = await ClerkService.login(
           _emailController.text.trim(),
           _passwordController.text,
         );
@@ -83,19 +111,25 @@ class _SignInScreenState extends State<SignInScreen> {
             isLoading = false;
           });
 
-          if (token != null) {
-            // Store token in SharedPreferences
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('token', token);
-            await prefs.setString('role', 'user'); // Default role
+          if (loginResult != null) {
+            // Verify that data was stored correctly
+            final storedToken = prefs.getString('token');
+            final storedUserId = prefs.getString('userId');
+            
+            print('Real login - Token stored: $storedToken');
+            print('Real login - UserId stored: $storedUserId');
+            
+            if (storedToken != null && storedUserId != null) {
+              // Show success message
+              _showSuccessSnackBar('Logged in successfully!');
 
-            // Show success message
-            _showSuccessSnackBar('Logged in successfully!');
-
-            // Navigate to role selection screen
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-            );
+              // Navigate to role selection screen
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+              );
+            } else {
+              throw Exception('Authentication data not stored properly');
+            }
           } else {
             _showError('Login failed. Please check your credentials.');
           }
@@ -113,8 +147,11 @@ class _SignInScreenState extends State<SignInScreen> {
             errorMessage = 'No internet connection. Please check your network.';
           } else if (error.toString().contains('TimeoutException')) {
             errorMessage = 'Connection timeout. Please try again.';
+          } else if (error.toString().contains('Authentication data not stored')) {
+            errorMessage = 'Login failed. Please try again.';
           }
           
+          print('Login error: $error');
           _showError(errorMessage);
         }
       }

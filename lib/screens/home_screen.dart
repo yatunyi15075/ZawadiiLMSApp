@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/note_screen.dart';
 import '../screens/youtube_video_link_screen.dart';
 import '../screens/upload_audio_screen.dart';
@@ -74,8 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _errorMessage = '';
 
   // Replace with your backend URL
-  static const String _baseUrl = 'https://zawadi-lms.onrender.com'; // Update this to your backend URL
-  static const String _userId = 'your-user-id'; // Replace with actual user ID from your auth system
+  static const String _baseUrl = 'https://zawadi-lms.onrender.com';
 
   @override
   void initState() {
@@ -89,12 +89,65 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // Get stored authentication token
+  Future<String?> _getAuthToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('token');
+    } catch (e) {
+      print('Error getting auth token: $e');
+      return null;
+    }
+  }
+
+  // Get stored user ID
+  Future<String?> _getUserId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('userId');
+    } catch (e) {
+      print('Error getting user ID: $e');
+      return null;
+    }
+  }
+
+  // Check authentication before making API calls
+  Future<bool> _checkAuthentication() async {
+    final token = await _getAuthToken();
+    final userId = await _getUserId();
+    
+    if (token == null || userId == null) {
+      setState(() {
+        _errorMessage = 'Please sign in to view your notes';
+        _isLoading = false;
+      });
+      return false;
+    }
+    return true;
+  }
+
+  // Clear authentication tokens
+  Future<void> _clearAuthTokens() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('token');
+      await prefs.remove('userId');
+    } catch (e) {
+      print('Error clearing auth tokens: $e');
+    }
+  }
+
   // Load both folders and notes
   Future<void> _loadData() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
+
+    // Check authentication first
+    if (!await _checkAuthentication()) {
+      return;
+    }
 
     try {
       await Future.wait([
@@ -115,9 +168,19 @@ class _HomeScreenState extends State<HomeScreen> {
   // Fetch folders from API
   Future<void> _loadFolders() async {
     try {
+      final token = await _getAuthToken();
+      final userId = await _getUserId();
+
+      if (token == null || userId == null) {
+        throw Exception('Authentication required');
+      }
+
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/folders?userId=$_userId'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$_baseUrl/api/folders?userId=$userId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -130,26 +193,47 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
           throw Exception(data['message'] ?? 'Failed to load folders');
         }
+      } else if (response.statusCode == 401) {
+        // Handle unauthorized access
+        await _clearAuthTokens();
+        setState(() {
+          _errorMessage = 'Session expired. Please sign in again.';
+        });
+        return;
       } else {
         throw Exception('HTTP ${response.statusCode}: ${response.reasonPhrase}');
       }
     } catch (e) {
       print('Error loading folders: $e');
-      // Don't throw here, just log the error
+      if (e.toString().contains('SocketException') || e.toString().contains('TimeoutException')) {
+        setState(() {
+          _errorMessage = 'Network error. Please check your connection.';
+        });
+      }
     }
   }
 
   // Fetch notes from API
   Future<void> _loadNotes() async {
     try {
-      String url = '$_baseUrl/api/notes?userId=$_userId';
+      final token = await _getAuthToken();
+      final userId = await _getUserId();
+
+      if (token == null || userId == null) {
+        throw Exception('Authentication required');
+      }
+
+      String url = '$_baseUrl/api/notes?userId=$userId';
       if (_selectedFolderId != null) {
         url += '&folderId=$_selectedFolderId';
       }
 
       final response = await http.get(
         Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -162,11 +246,23 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
           throw Exception('Invalid response format');
         }
+      } else if (response.statusCode == 401) {
+        // Handle unauthorized access
+        await _clearAuthTokens();
+        setState(() {
+          _errorMessage = 'Session expired. Please sign in again.';
+        });
+        throw Exception('Session expired');
       } else {
         throw Exception('HTTP ${response.statusCode}: ${response.reasonPhrase}');
       }
     } catch (e) {
       print('Error loading notes: $e');
+      if (e.toString().contains('SocketException') || e.toString().contains('TimeoutException')) {
+        setState(() {
+          _errorMessage = 'Network error. Please check your connection.';
+        });
+      }
       throw e;
     }
   }
@@ -250,6 +346,30 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       return 'Unknown date';
     }
+  }
+
+  // Show SnackBar for messages
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: isError ? Colors.red[400] : Colors.green[400],
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: Duration(seconds: isError ? 4 : 2),
+      ),
+    );
   }
 
   @override

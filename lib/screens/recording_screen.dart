@@ -30,7 +30,8 @@ class _RecordingScreenState extends State<RecordingScreen>
   late Animation<double> _pulseAnimation;
   late Animation<double> _waveAnimation;
 
-  static const String baseUrl = 'https://zawadi-lms.onrender.com';
+  // Updated to match the upload screen base URL exactly
+  static const String baseUrl = 'https://zawadi-project.onrender.com';
 
   final List<Map<String, String>> _languages = [
     {'code': 'en-US', 'name': 'English (US)', 'flag': '🇺🇸'},
@@ -68,6 +69,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     _audioRecorder = FlutterSoundRecorder();
     try {
       await _audioRecorder!.openRecorder();
+      print('Recorder initialized successfully');
     } catch (e) {
       print('Error initializing recorder: $e');
       _showSnackBar('Failed to initialize recorder. Please check permissions.', isError: true);
@@ -80,6 +82,12 @@ class _RecordingScreenState extends State<RecordingScreen>
     _pulseController.dispose();
     _waveController.dispose();
     super.dispose();
+  }
+
+  // Updated to match upload screen pattern exactly
+  Future<String?> _getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
   }
 
   Future<bool> _checkPermissions() async {
@@ -97,11 +105,12 @@ class _RecordingScreenState extends State<RecordingScreen>
       }
 
       final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-      final String filePath = '${appDocumentsDir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.wav';
+      final String filePath = '${appDocumentsDir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.aac';
       
+      // Use AAC format which is more widely supported
       await _audioRecorder!.startRecorder(
         toFile: filePath,
-        codec: Codec.pcm16WAV,
+        codec: Codec.aacADTS,
         bitRate: 128000,
         sampleRate: 44100,
       );
@@ -116,6 +125,8 @@ class _RecordingScreenState extends State<RecordingScreen>
       _pulseController.repeat(reverse: true);
       _waveController.repeat();
       _startTimer();
+      
+      print('Recording started: $filePath');
     } catch (e) {
       print('Error starting recording: $e');
       _showSnackBar('Failed to start recording: $e', isError: true);
@@ -128,14 +139,39 @@ class _RecordingScreenState extends State<RecordingScreen>
       _pulseController.stop();
       _waveController.stop();
       
-      setState(() {
-        _isRecording = false;
-        _audioPath = path;
-        _hasRecording = true;
-      });
+      print('Recording stopped: $path');
+      
+      // Verify file exists and has content
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) {
+          final fileSize = await file.length();
+          print('Audio file size: $fileSize bytes');
+          
+          if (fileSize > 0) {
+            setState(() {
+              _isRecording = false;
+              _audioPath = path;
+              _hasRecording = true;
+            });
+            _showSnackBar('Recording completed successfully!');
+          } else {
+            throw Exception('Audio file is empty');
+          }
+        } else {
+          throw Exception('Audio file was not created');
+        }
+      } else {
+        throw Exception('Failed to get recording path');
+      }
     } catch (e) {
       print('Error stopping recording: $e');
       _showSnackBar('Failed to stop recording: $e', isError: true);
+      setState(() {
+        _isRecording = false;
+        _hasRecording = false;
+        _audioPath = null;
+      });
     }
   }
 
@@ -158,57 +194,130 @@ class _RecordingScreenState extends State<RecordingScreen>
       return;
     }
 
+    // Validate file exists and has content
+    final audioFile = File(_audioPath!);
+    if (!await audioFile.exists()) {
+      _showSnackBar('Audio file not found. Please record again.', isError: true);
+      return;
+    }
+
+    final fileSize = await audioFile.length();
+    if (fileSize == 0) {
+      _showSnackBar('Audio file is empty. Please record again.', isError: true);
+      return;
+    }
+
+    print('Submitting audio file: $_audioPath (${fileSize} bytes)');
+
     setState(() {
       _isLoading = true;
     });
 
     try {
+      // Get authentication token using the exact same pattern as upload screen
+      final token = await _getAuthToken();
+      if (token == null) {
+        _showSnackBar('No authentication token found. Please log in again.', isError: true);
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Get userId and currentFolderId from SharedPreferences (same as upload screen)
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
       final currentFolderId = prefs.getString('currentFolderId');
 
+      if (userId == null) {
+        _showSnackBar('User not authenticated. Please log in again.', isError: true);
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Create multipart request (same as upload screen)
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/api/audio/upload'),
       );
 
-      final audioFile = File(_audioPath!);
-      if (await audioFile.exists()) {
-        final fileName = 'recording_${DateTime.now().millisecondsSinceEpoch}.wav';
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'audio',
-            _audioPath!,
-            filename: fileName,
-          ),
-        );
-      } else {
-        throw Exception('Audio file does not exist');
-      }
+      // Add authorization header using the exact same pattern as upload screen
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+      });
 
+      // Create proper filename with correct extension
+      final fileName = 'recording_${DateTime.now().millisecondsSinceEpoch}.aac';
+      
+      // Add the audio file
+      final multipartFile = await http.MultipartFile.fromPath(
+        'audio',
+        _audioPath!,
+        filename: fileName,
+      );
+      
+      request.files.add(multipartFile);
+
+      // Add form fields (same as upload screen)
       request.fields['dialect'] = _selectedDialect;
-      if (userId != null) {
-        request.fields['userId'] = userId;
-      }
+      request.fields['userId'] = userId;
+      
       if (currentFolderId != null) {
         request.fields['folderId'] = currentFolderId;
       }
 
-      final streamedResponse = await request.send();
+      print('Sending request to: ${request.url}');
+      print('Headers: ${request.headers}');
+      print('Fields: ${request.fields}');
+      print('File: ${multipartFile.filename} (${multipartFile.length} bytes)');
+
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 60), // Add timeout
+      );
       final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to process recorded audio');
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 401) {
+        _showSnackBar('Authentication failed. Please log in again.', isError: true);
+        return;
+      } else if (response.statusCode == 413) {
+        _showSnackBar('Audio file is too large. Please record a shorter audio.', isError: true);
+        return;
+      } else if (response.statusCode == 415) {
+        _showSnackBar('Audio format not supported. Please try recording again.', isError: true);
+        return;
+      } else if (response.statusCode != 200) {
+        // Try to get more specific error from response body
+        String errorMessage = 'Failed to process recorded audio: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          } else if (errorData['error'] != null) {
+            errorMessage = errorData['error'];
+          }
+        } catch (e) {
+          print('Could not parse error response: $e');
+        }
+        _showSnackBar(errorMessage, isError: true);
+        return;
       }
 
       final data = jsonDecode(response.body);
 
+      // Handle response using the same pattern as upload screen
       if (data['notes'] != null) {
-        _showNotesResult(data['notes'], data['noteId']);
+        // If notes are directly available
+        _handleSuccessfulProcessing(data);
       } else if (data['fileUri'] != null) {
-        await _transcribeAudio(data['fileUri'], userId, currentFolderId);
+        // If we need to transcribe
+        await _transcribeAudio(data['fileUri'], userId, currentFolderId, token);
       } else {
-        throw Exception('No notes or transcript available');
+        _showSnackBar('No notes or transcript available in response', isError: true);
       }
     } catch (error) {
       print('Error processing recorded audio: $error');
@@ -220,29 +329,77 @@ class _RecordingScreenState extends State<RecordingScreen>
     }
   }
 
-  Future<void> _transcribeAudio(String fileUri, String? userId, String? currentFolderId) async {
+  Future<void> _transcribeAudio(String fileUri, String userId, String? currentFolderId, String token) async {
     try {
+      // Prepare request body (same as upload screen)
+      Map<String, dynamic> requestBody = {
+        'fileUri': fileUri,
+        'userId': userId,
+        'dialect': _selectedDialect,
+      };
+
+      if (currentFolderId != null) {
+        requestBody['folderId'] = currentFolderId;
+      }
+
+      // Make transcription request using same pattern as upload screen
       final response = await http.post(
         Uri.parse('$baseUrl/api/audio/transcribe'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'fileUri': fileUri,
-          'userId': userId,
-          'folderId': currentFolderId,
-          'dialect': _selectedDialect,
-        }),
-      );
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(requestBody),
+      ).timeout(const Duration(seconds: 60));
 
-      if (response.statusCode != 200) {
-        throw Exception('Failed to transcribe audio');
+      print('Transcription response status: ${response.statusCode}');
+      print('Transcription response body: ${response.body}');
+
+      if (response.statusCode == 401) {
+        _showSnackBar('Authentication failed. Please log in again.', isError: true);
+        return;
+      } else if (response.statusCode != 200) {
+        String errorMessage = 'Failed to transcribe audio: ${response.statusCode}';
+        try {
+          final errorData = jsonDecode(response.body);
+          if (errorData['message'] != null) {
+            errorMessage = errorData['message'];
+          } else if (errorData['error'] != null) {
+            errorMessage = errorData['error'];
+          }
+        } catch (e) {
+          print('Could not parse transcription error response: $e');
+        }
+        _showSnackBar(errorMessage, isError: true);
+        return;
       }
 
       final data = jsonDecode(response.body);
-      final transcript = data['transcript'] ?? 'No transcript generated.';
-      
-      _showNotesResult(transcript, data['noteId']);
+      _handleSuccessfulProcessing(data);
     } catch (error) {
-      throw Exception('Transcription failed: $error');
+      _showSnackBar('Transcription failed: $error', isError: true);
+    }
+  }
+
+  // Handle successful processing using the same pattern as upload screen
+  void _handleSuccessfulProcessing(Map<String, dynamic> data) {
+    String notes = data['notes'] ?? data['transcript'] ?? 'No notes generated.';
+    
+    _showSnackBar('Audio processed successfully!');
+    
+    if (data['noteId'] != null) {
+      // Navigate to the specific note view (same as upload screen)
+      Navigator.pushNamed(
+        context, 
+        '/notes/${data['noteId']}',
+        arguments: {
+          'notes': notes,
+          'noteId': data['noteId'],
+        },
+      );
+    } else {
+      // Show notes in a dialog
+      _showNotesResult(notes, null);
     }
   }
 

@@ -30,8 +30,14 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
     'Arabic',
   ];
 
-  // Base URL for your API - update this to match your backend
-  static const String baseUrl = 'https://zawadi-lms.onrender.com'; // Change this to your actual backend URL
+  // Base URL for your API - updated to match notifications
+  static const String baseUrl = 'https://zawadi-project.onrender.com';
+
+  // Get stored authentication token (same as notifications)
+  Future<String?> _getAuthToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
 
   Future<void> _pickAudioFile() async {
     try {
@@ -107,6 +113,21 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
     });
 
     try {
+      // Get token using the same method as notifications
+      final token = await _getAuthToken();
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No authentication token found. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isProcessing = false;
+        });
+        return;
+      }
+
       // Get userId and currentFolderId from SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? userId = prefs.getString('userId');
@@ -119,6 +140,9 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
             backgroundColor: Colors.red,
           ),
         );
+        setState(() {
+          _isProcessing = false;
+        });
         return;
       }
 
@@ -127,6 +151,11 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
         'POST',
         Uri.parse('$baseUrl/api/audio/upload'),
       );
+
+      // Add headers with token authentication (same as notifications)
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+      });
 
       // Add audio file
       request.files.add(
@@ -164,13 +193,20 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
           _handleSuccessfulProcessing(data);
         } else if (data['fileUri'] != null) {
           // If we need to transcribe
-          await _transcribeAudio(data['fileUri'], userId, currentFolderId);
+          await _transcribeAudio(data['fileUri'], userId, currentFolderId, token);
         } else {
           _showNotesDialog('No notes or transcript available.');
         }
 
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication failed. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       } else {
-        throw Exception('Failed to process uploaded audio');
+        throw Exception('Failed to process uploaded audio: ${response.statusCode}');
       }
 
     } catch (e) {
@@ -187,7 +223,7 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
     }
   }
 
-  Future<void> _transcribeAudio(String fileUri, String userId, String? currentFolderId) async {
+  Future<void> _transcribeAudio(String fileUri, String userId, String? currentFolderId, String token) async {
     try {
       Map<String, dynamic> requestBody = {
         'fileUri': fileUri,
@@ -203,6 +239,7 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
         Uri.parse('$baseUrl/api/audio/transcribe'),
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token', // Add token authentication
         },
         body: json.encode(requestBody),
       );
@@ -210,8 +247,15 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         _handleSuccessfulProcessing(data);
+      } else if (response.statusCode == 401) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication failed. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       } else {
-        throw Exception('Failed to transcribe audio');
+        throw Exception('Failed to transcribe audio: ${response.statusCode}');
       }
 
     } catch (e) {
@@ -295,7 +339,7 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // This is the key fix
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
@@ -324,9 +368,13 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
                     Expanded(
                       child: DropdownButton<String>(
                         value: _selectedLanguage,
-                        hint: const Text('Note language'),
+                        hint: const Text(
+                          'Note language',
+                          style: TextStyle(color: Colors.black), // Fixed text color
+                        ),
                         isExpanded: true,
                         underline: const SizedBox(),
+                        style: const TextStyle(color: Colors.black), // Fixed dropdown text color
                         onChanged: (String? newValue) {
                           setState(() {
                             _selectedLanguage = newValue;
@@ -336,7 +384,10 @@ class _UploadAudioScreenState extends State<UploadAudioScreen> {
                             .map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
-                            child: Text(value),
+                            child: Text(
+                              value,
+                              style: const TextStyle(color: Colors.black), // Fixed menu item text color
+                            ),
                           );
                         }).toList(),
                       ),
