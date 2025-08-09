@@ -1,15 +1,18 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class QuizzesTab extends StatefulWidget {
   final String noteId;
   final String noteTitle;
+  final String? userId; // Add userId parameter to match web app functionality
   
   const QuizzesTab({
     Key? key, 
     required this.noteId,
     required this.noteTitle,
+    this.userId, // Make it optional for now
   }) : super(key: key);
 
   @override
@@ -30,17 +33,40 @@ class _QuizzesTabState extends State<QuizzesTab> {
   List<Map<String, dynamic>> quizzes = [];
   bool isLoading = false;
   bool isGenerating = false;
+  bool isSavingResult = false; // Add saving state
   String? error;
+  String? actualUserId; // Store the actual user ID
   
   // Quiz interaction state
-  Map<int, String> userAnswers = {};
+  Map<int, String?> userAnswers = {};
   bool showResults = false;
   Map<String, dynamic>? score;
 
   @override
   void initState() {
     super.initState();
+    _initializeUserId();
     fetchQuizzes();
+  }
+
+  // Get the actual user ID from SharedPreferences
+  Future<void> _initializeUserId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? storedUserId = prefs.getString('userId');
+      
+      setState(() {
+        // Use the passed userId first, then stored userId, then fallback
+        actualUserId = widget.userId ?? storedUserId ?? 'flutter_user';
+      });
+      
+      print('Initialized user ID: $actualUserId'); // Debug log
+    } catch (e) {
+      print('Error getting user ID: $e');
+      setState(() {
+        actualUserId = widget.userId ?? 'flutter_user';
+      });
+    }
   }
 
   Future<void> fetchQuizzes() async {
@@ -67,10 +93,10 @@ class _QuizzesTabState extends State<QuizzesTab> {
             'correctAnswer': quiz['correctAnswer'],
           }).toList();
           
-          // Initialize user answers
+          // Initialize user answers with null values
           userAnswers = {};
           for (int i = 0; i < quizzes.length; i++) {
-            userAnswers[i] = '';
+            userAnswers[i] = null;
           }
           showResults = false;
           score = null;
@@ -108,12 +134,14 @@ class _QuizzesTabState extends State<QuizzesTab> {
 
       if (response.statusCode == 200) {
         await fetchQuizzes();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Quizzes generated successfully!'),
-            backgroundColor: quizColor,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quizzes generated successfully!'),
+              backgroundColor: quizColor,
+            ),
+          );
+        }
       } else {
         final data = json.decode(response.body);
         throw Exception(data['error'] ?? 'Failed to generate quizzes');
@@ -137,7 +165,91 @@ class _QuizzesTabState extends State<QuizzesTab> {
     }
   }
 
-  void checkAnswers() {
+  // Fixed saveQuizResult function - now uses the proper user ID
+  Future<void> saveQuizResult(Map<String, dynamic> scoreData) async {
+    setState(() {
+      isSavingResult = true;
+    });
+
+    try {
+      // Ensure we have a user ID before saving
+      if (actualUserId == null) {
+        await _initializeUserId();
+      }
+
+      // Use the first quiz's ID as representative of the quiz session
+      // or use noteId if your backend expects it that way
+      final quizId = quizzes.isNotEmpty ? quizzes[0]['id'] : null;
+      
+      if (quizId == null) {
+        throw Exception('No quiz ID available');
+      }
+
+      final requestBody = {
+        'userId': actualUserId ?? 'flutter_user', // Use the actual user ID
+        'quizId': quizId,
+        'score': scoreData['percentage'].toDouble(),
+        'totalQuestions': scoreData['total'],
+        'correctAnswers': scoreData['correct'],
+      };
+      
+      print('Saving quiz result with userId: ${actualUserId}'); // Debug log
+      print('Saving quiz result: $requestBody'); // Debug log
+
+      final response = await http.post(
+        Uri.parse('https://zawadi-lms.onrender.com/api/quizzes/${widget.noteId}/results'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(requestBody),
+      );
+
+      print('Save response status: ${response.statusCode}'); // Debug log
+      print('Save response body: ${response.body}'); // Debug log
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.celebration, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('Quiz Score Saved 🎉'),
+                ],
+              ),
+              backgroundColor: quizColor,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['error'] ?? 'Failed to save quiz score');
+      }
+    } catch (e) {
+      print('Error saving quiz result: $e'); // Debug log
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Text('Failed to save quiz score: ${e.toString()}'),
+              ],
+            ),
+            backgroundColor: incorrectColor,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        isSavingResult = false;
+      });
+    }
+  }
+
+  void checkAnswers() async {
     int correctCount = 0;
     
     for (int i = 0; i < quizzes.length; i++) {
@@ -156,13 +268,19 @@ class _QuizzesTabState extends State<QuizzesTab> {
       score = scoreData;
       showResults = true;
     });
+
+    // Save quiz result to backend
+    if (quizzes.isNotEmpty) {
+      await saveQuizResult(scoreData);
+    }
   }
 
   void resetQuiz() {
     setState(() {
+      // Initialize with null values
       userAnswers = {};
       for (int i = 0; i < quizzes.length; i++) {
-        userAnswers[i] = '';
+        userAnswers[i] = null;
       }
       showResults = false;
       score = null;
@@ -177,7 +295,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
     
     if (userAnswer == correctAnswer) {
       return Colors.green.shade50;
-    } else if (userAnswer != '' && userAnswer != correctAnswer) {
+    } else if (userAnswer != null && userAnswer != correctAnswer) {
       return Colors.red.shade50;
     }
     return cardColor;
@@ -191,7 +309,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
     
     if (userAnswer == correctAnswer) {
       return Border.all(color: Colors.green.shade300, width: 2);
-    } else if (userAnswer != '' && userAnswer != correctAnswer) {
+    } else if (userAnswer != null && userAnswer != correctAnswer) {
       return Border.all(color: Colors.red.shade300, width: 2);
     }
     return Border.all(color: Colors.grey.shade200);
@@ -258,6 +376,19 @@ class _QuizzesTabState extends State<QuizzesTab> {
                       ],
                     ),
                   ),
+                  // Add saving indicator
+                  if (isSavingResult)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      child: const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(quizColor),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -507,6 +638,19 @@ class _QuizzesTabState extends State<QuizzesTab> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              // Show saving indicator if still saving
+              if (isSavingResult)
+                Container(
+                  margin: const EdgeInsets.only(left: 8),
+                  child: const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(quizColor),
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -751,7 +895,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
   }
 
   Widget _buildBottomActionBar() {
-    final answeredCount = userAnswers.values.where((answer) => answer.isNotEmpty).length;
+    final answeredCount = userAnswers.values.where((answer) => answer != null && answer!.isNotEmpty).length;
     final allAnswered = answeredCount == quizzes.length;
 
     return Container(
@@ -778,7 +922,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
             ),
           ),
           ElevatedButton(
-            onPressed: allAnswered ? checkAnswers : null,
+            onPressed: (allAnswered && !isSavingResult) ? checkAnswers : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
@@ -787,10 +931,26 @@ class _QuizzesTabState extends State<QuizzesTab> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
-              'Check Answers',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
+            child: isSavingResult 
+                ? const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text('Saving...'),
+                    ],
+                  )
+                : const Text(
+                    'Check Answers',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
           ),
         ],
       ),
