@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../screens/ai_chat_bot.dart'; // Import the AI chat from separate file
+import '../screens/study_history.dart'; // Import the Study History screen
 import '../tabs/notes_tab.dart';
 import '../tabs/quizzes_tab.dart';
 import '../tabs/flashcards_tab.dart';
@@ -32,6 +33,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
   static const Color cardColor = Colors.white;
   static const Color textPrimary = Color(0xFF1F2937);
   static const Color textSecondary = Color(0xFF6B7280);
+  static const Color historyColor = Color(0xFF7C3AED); // Purple for history
 
   @override
   void initState() {
@@ -70,6 +72,36 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
           ),
         ),
         actions: [
+          // Study History Button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => StudyHistoryScreen(
+                      userId: widget.noteId, // Changed from noteId to userId
+                      noteTitle: widget.noteTitle ?? 'Study Notes',
+                    ),
+                  ),
+                );
+              },
+              icon: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: historyColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.history_rounded,
+                  color: historyColor,
+                  size: 20,
+                ),
+              ),
+              tooltip: 'Study History',
+            ),
+          ),
           // AI Chat Button
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -94,6 +126,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
                   size: 20,
                 ),
               ),
+              tooltip: 'AI Assistant',
             ),
           ),
           IconButton(
@@ -174,6 +207,24 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
               ),
             ),
             const SizedBox(height: 20),
+            // Quick Access to Study History in More Options
+            ListTile(
+              leading: const Icon(Icons.analytics_rounded, color: historyColor),
+              title: const Text('Study Analytics', style: TextStyle(color: textPrimary)),
+              subtitle: const Text('View detailed study progress', style: TextStyle(color: textSecondary, fontSize: 12)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => StudyHistoryScreen(
+                      userId: widget.noteId, // Changed from noteId to userId
+                      noteTitle: widget.noteTitle ?? 'Study Notes',
+                    ),
+                  ),
+                );
+              },
+            ),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.edit_rounded, color: primaryColor),
               title: const Text('Edit Note', style: TextStyle(color: textPrimary)),

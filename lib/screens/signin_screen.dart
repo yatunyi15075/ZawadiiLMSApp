@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/clerk_service.dart';
-import '../screens/role_selection_screen.dart';
+import '../screens/home_screen.dart';
 import '../screens/signup_screen.dart';
 import '../widgets/custom_button.dart';
 
@@ -62,9 +62,9 @@ class _SignInScreenState extends State<SignInScreen> {
         // Show success message
         _showSuccessSnackBar('Demo login successful!');
 
-        // Navigate to role selection screen
+        // Navigate directly to home screen
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
       } else {
         throw Exception('Failed to store demo credentials');
@@ -123,9 +123,9 @@ class _SignInScreenState extends State<SignInScreen> {
               // Show success message
               _showSuccessSnackBar('Logged in successfully!');
 
-              // Navigate to role selection screen
+              // Navigate directly to home screen
               Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+                MaterialPageRoute(builder: (_) => const HomeScreen()),
               );
             } else {
               throw Exception('Authentication data not stored properly');

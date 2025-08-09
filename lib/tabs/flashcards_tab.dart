@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:math' as math;
 
 class FlashcardsTab extends StatefulWidget {
   final String noteId;
@@ -16,7 +17,7 @@ class FlashcardsTab extends StatefulWidget {
   State<FlashcardsTab> createState() => _FlashcardsTabState();
 }
 
-class _FlashcardsTabState extends State<FlashcardsTab> {
+class _FlashcardsTabState extends State<FlashcardsTab> with TickerProviderStateMixin {
   // Professional color scheme
   static const Color cardColor = Colors.white;
   static const Color textPrimary = Color(0xFF1F2937);
@@ -29,11 +30,29 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
   String? error;
   int currentCardIndex = 0;
   bool isFlipped = false;
+  
+  // Animation controller for flip effect
+  late AnimationController _flipController;
+  late Animation<double> _flipAnimation;
 
   @override
   void initState() {
     super.initState();
+    // Initialize animation controller
+    _flipController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
+    _flipAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _flipController, curve: Curves.easeInOut),
+    );
     fetchFlashcards();
+  }
+
+  @override
+  void dispose() {
+    _flipController.dispose();
+    super.dispose();
   }
 
   Future<void> fetchFlashcards() async {
@@ -58,6 +77,7 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
           }).toList();
           currentCardIndex = 0;
           isFlipped = false;
+          _flipController.reset();
         });
       } else if (response.statusCode == 404) {
         setState(() {
@@ -117,6 +137,7 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
       setState(() {
         currentCardIndex = (currentCardIndex + 1) % flashcards.length;
         isFlipped = false;
+        _flipController.reset();
       });
     }
   }
@@ -126,6 +147,7 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
       setState(() {
         currentCardIndex = (currentCardIndex - 1 + flashcards.length) % flashcards.length;
         isFlipped = false;
+        _flipController.reset();
       });
     }
   }
@@ -134,6 +156,12 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
     setState(() {
       isFlipped = !isFlipped;
     });
+    
+    if (isFlipped) {
+      _flipController.forward();
+    } else {
+      _flipController.reverse();
+    }
   }
 
   @override
@@ -374,56 +402,72 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
           ),
         ),
 
-        // Flashcard
+        // Animated Flashcard with responsive content
         Expanded(
           child: GestureDetector(
             onTap: flipCard,
             child: Container(
               width: double.infinity,
               margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: isFlipped ? flashcardColor.withOpacity(0.1) : cardColor,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+              constraints: const BoxConstraints(
+                minHeight: 200,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isFlipped ? Icons.lightbulb : Icons.help_outline,
-                      color: flashcardColor,
-                      size: 32,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      isFlipped ? currentCard['back'] : currentCard['front'],
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: textPrimary,
-                        height: 1.4,
+              child: AnimatedBuilder(
+                animation: _flipAnimation,
+                builder: (context, child) {
+                  final isShowingFront = _flipAnimation.value < 0.5;
+                  return Transform(
+                    alignment: Alignment.center,
+                    transform: Matrix4.identity()
+                      ..setEntry(3, 2, 0.001)
+                      ..rotateY(_flipAnimation.value * math.pi),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isShowingFront 
+                            ? cardColor 
+                            : flashcardColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      isFlipped ? 'Tap to see question' : 'Tap to see answer',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: textSecondary,
-                        fontStyle: FontStyle.italic,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()
+                            ..rotateY(isShowingFront ? 0 : math.pi),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final content = isShowingFront ? currentCard['front'] : currentCard['back'];
+                              final isLongContent = content.toString().length > 200;
+                              
+                              return Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                child: isLongContent
+                                    ? SingleChildScrollView(
+                                        padding: const EdgeInsets.all(24),
+                                        child: _buildCardContent(content, isShowingFront),
+                                      )
+                                    : Padding(
+                                        padding: const EdgeInsets.all(24),
+                                        child: Center(
+                                          child: _buildCardContent(content, isShowingFront),
+                                        ),
+                                      ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ),
@@ -474,5 +518,156 @@ class _FlashcardsTabState extends State<FlashcardsTab> {
         ),
       ],
     );
+  }
+
+  Widget _buildCardContent(String content, bool isShowingFront) {
+    // Calculate dynamic font size based on content length
+    double getFontSize(String text) {
+      if (text.length > 500) return 14;
+      if (text.length > 300) return 15;
+      if (text.length > 200) return 16;
+      if (text.length > 100) return 17;
+      return 18;
+    }
+
+    // Determine if content needs scrolling based on estimated height
+    final fontSize = getFontSize(content);
+    final estimatedLines = (content.length * 0.8) / 40; // Rough estimate
+    final estimatedHeight = estimatedLines * fontSize * 1.4;
+    final needsScrolling = estimatedHeight > 180; // Adjust threshold as needed
+
+    if (needsScrolling) {
+      // For very long content, use a scrollable layout
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+              ),
+              child: IntrinsicHeight(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 16),
+                    
+                    // Compact icon for scrollable content
+                    Icon(
+                      isShowingFront ? Icons.help_outline : Icons.lightbulb,
+                      color: flashcardColor,
+                      size: 24,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Main content with flexible layout
+                    Flexible(
+                      child: Text(
+                        content,
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          fontWeight: FontWeight.w500,
+                          color: textPrimary,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.left,
+                        softWrap: true,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Instruction text
+                    Text(
+                      isShowingFront ? 'Swipe to scroll • Tap to see answer' : 'Swipe to scroll • Tap to see question',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // For shorter content, use centered layout with flexible sizing
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Flexible spacer
+                const Flexible(flex: 1, child: SizedBox.shrink()),
+                
+                // Icon with subtle animation
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 300),
+                  tween: Tween(begin: 0.8, end: 1.0),
+                  builder: (context, scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      child: Icon(
+                        isShowingFront ? Icons.help_outline : Icons.lightbulb,
+                        color: flashcardColor,
+                        size: 28,
+                      ),
+                    );
+                  },
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Content text with flexible constraints
+                Flexible(
+                  flex: 3,
+                  child: Center(
+                    child: Text(
+                      content,
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w500,
+                        color: textPrimary,
+                        height: 1.4,
+                      ),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      overflow: TextOverflow.visible,
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Instruction text
+                Text(
+                  isShowingFront ? 'Tap to see answer' : 'Tap to see question',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: textSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                
+                // Flexible spacer
+                const Flexible(flex: 1, child: SizedBox.shrink()),
+              ],
+            ),
+          );
+        },
+      );
+    }
   }
 }
