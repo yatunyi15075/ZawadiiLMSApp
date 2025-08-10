@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart'; 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -31,7 +31,7 @@ class _NotesTabState extends State<NotesTab> {
   static const Color linkColor = Color(0xFF2563EB);
   static const Color borderColor = Color(0xFFD1D5DB);
 
-  // Backend URL - same as home screen
+  // Backend URL - same as your deployed backend
   static const String _baseUrl = 'https://zawadi-lms.onrender.com';
 
   Map<String, dynamic>? noteData;
@@ -42,6 +42,10 @@ class _NotesTabState extends State<NotesTab> {
   @override
   void initState() {
     super.initState();
+    _initializeNoteData();
+  }
+
+  void _initializeNoteData() {
     if (widget.noteId != null) {
       fetchNoteData();
     } else if (widget.initialContent != null) {
@@ -51,7 +55,14 @@ class _NotesTabState extends State<NotesTab> {
         'createdAt': DateTime.now().toIso8601String(),
         'folderId': 'general',
       };
-      isLoading = false;
+      setState(() {
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        error = 'No note data available';
+        isLoading = false;
+      });
     }
   }
 
@@ -116,7 +127,9 @@ class _NotesTabState extends State<NotesTab> {
         error = null;
       });
 
-      // Check authentication first - this was missing!
+      print('Fetching note with ID: ${widget.noteId}');
+
+      // Check authentication first
       if (!await _checkAuthentication()) {
         return;
       }
@@ -133,21 +146,53 @@ class _NotesTabState extends State<NotesTab> {
         return;
       }
 
+      final url = '$_baseUrl/api/notes/${widget.noteId}?userId=$userId';
+      print('Making API request to: $url');
+
       // Make API request with proper authentication headers
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/notes/${widget.noteId}?userId=$userId'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // This was missing!
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timeout. Please check your connection.');
         },
       );
 
+      print('API Response status: ${response.statusCode}');
+      print('API Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        
+        // Handle both direct note data and wrapped response
+        Map<String, dynamic> processedData;
+        if (data is Map<String, dynamic>) {
+          if (data.containsKey('success') && data['success'] == true && data.containsKey('data')) {
+            // Wrapped response format
+            processedData = data['data'];
+          } else if (data.containsKey('content') || data.containsKey('topic')) {
+            // Direct note format
+            processedData = data;
+          } else {
+            print('Unexpected response format: $data');
+            throw Exception('Invalid response format');
+          }
+        } else {
+          print('Response is not a Map: $data');
+          throw Exception('Invalid response format');
+        }
+
         setState(() {
-          noteData = data;
+          noteData = processedData;
           isLoading = false;
         });
+        
+        print('Note data loaded successfully: ${noteData?['topic']}');
       } else if (response.statusCode == 401) {
         // Handle unauthorized access
         await _clearAuthTokens();
@@ -155,9 +200,17 @@ class _NotesTabState extends State<NotesTab> {
           error = 'Session expired. Please sign in again.';
           isLoading = false;
         });
-      } else {
+      } else if (response.statusCode == 404) {
         setState(() {
-          error = 'Failed to load note: HTTP ${response.statusCode}';
+          error = 'Note not found. It may have been deleted.';
+          isLoading = false;
+        });
+      } else {
+        final errorMsg = 'Failed to load note: HTTP ${response.statusCode}';
+        print(errorMsg);
+        print('Response body: ${response.body}');
+        setState(() {
+          error = errorMsg;
           isLoading = false;
         });
       }
@@ -165,10 +218,11 @@ class _NotesTabState extends State<NotesTab> {
       print('Error fetching note: $e');
       setState(() {
         if (e.toString().contains('SocketException') || 
-            e.toString().contains('TimeoutException')) {
+            e.toString().contains('TimeoutException') ||
+            e.toString().contains('Request timeout')) {
           error = 'Network error. Please check your connection.';
         } else {
-          error = 'Failed to load note: $e';
+          error = 'Failed to load note: ${e.toString()}';
         }
         isLoading = false;
       });
@@ -226,7 +280,7 @@ class _NotesTabState extends State<NotesTab> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                'Folder: General',
+                                'Folder: ${_getFolderName(noteData!['folderId'])}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: textSecondary,
@@ -259,6 +313,16 @@ class _NotesTabState extends State<NotesTab> {
                         color: textSecondary,
                       ),
                     ),
+                ] else if (isLoading) ...[
+                  // Loading state header
+                  Container(
+                    height: 40,
+                    width: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 16),
                 // Action buttons matching webapp
@@ -267,7 +331,13 @@ class _NotesTabState extends State<NotesTab> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // Mind map functionality
+                          // Mind map functionality - to be implemented
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Mind map feature coming soon!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.account_tree, size: 18),
                         label: const Text('Mind map'),
@@ -285,7 +355,13 @@ class _NotesTabState extends State<NotesTab> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          // Translate functionality
+                          // Translate functionality - to be implemented
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Translate feature coming soon!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
                         },
                         icon: const Icon(Icons.translate, size: 18),
                         label: const Text('Translate'),
@@ -315,60 +391,139 @@ class _NotesTabState extends State<NotesTab> {
     );
   }
 
+  String _getFolderName(dynamic folderId) {
+    // Handle different folder data types
+    if (folderId == null) {
+      return 'General';
+    }
+    
+    // If folderId is an object with name property
+    if (folderId is Map<String, dynamic> && folderId.containsKey('name')) {
+      return folderId['name'] ?? 'General';
+    }
+    
+    // If folderId is a string
+    if (folderId is String) {
+      if (folderId.isEmpty || folderId == 'general') {
+        return 'General';
+      }
+      return folderId;
+    }
+    
+    // If folderId is a number
+    if (folderId is int) {
+      return 'Folder $folderId';
+    }
+    
+    return 'General';
+  }
+
   Widget _buildContent() {
     if (isLoading) {
       return const Center(
-        child: CircularProgressIndicator(
-          color: primaryColor,
-        ),
-      );
-    }
-
-    if (error != null) {
-      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: Colors.red[400],
+            CircularProgressIndicator(
+              color: primaryColor,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
-              error!,
-              style: const TextStyle(
-                color: Colors.red,
+              'Loading note...',
+              style: TextStyle(
+                color: textSecondary,
                 fontSize: 16,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                if (widget.noteId != null) {
-                  fetchNoteData();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Retry'),
             ),
           ],
         ),
       );
     }
 
+    if (error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                error!.contains('Network') || error!.contains('connection') 
+                  ? Icons.wifi_off 
+                  : error!.contains('sign in') 
+                    ? Icons.login 
+                    : Icons.error_outline,
+                size: 64,
+                color: Colors.red[400],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                error!,
+                style: const TextStyle(
+                  color: Colors.red,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      if (widget.noteId != null) {
+                        fetchNoteData();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Retry'),
+                  ),
+                  if (error!.contains('sign in')) ...[
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          '/login', 
+                          (route) => false,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Sign In'),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (noteData == null) {
       return const Center(
-        child: Text(
-          'No note data available',
-          style: TextStyle(
-            color: textSecondary,
-            fontSize: 16,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 64,
+              color: textSecondary,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'No note data available',
+              style: TextStyle(
+                color: textSecondary,
+                fontSize: 16,
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -378,7 +533,7 @@ class _NotesTabState extends State<NotesTab> {
       padding: const EdgeInsets.all(16.0),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 800),
-        child: _buildMarkdownContent(noteData!['content'] ?? ''),
+        child: _buildMarkdownContent(noteData!['content'] ?? 'No content available.'),
       ),
     );
   }
@@ -492,211 +647,211 @@ class _NotesTabState extends State<NotesTab> {
         widgets.add(Padding(
           padding: const EdgeInsets.only(bottom: 16),
           child: _buildRichText(line),
-        ));
-      }
-    }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
-    );
-  }
-
-  Widget _buildRichText(String text) {
-    // Handle bold, italic, and inline code
-    List<TextSpan> spans = [];
-    String remaining = text;
-    
-    while (remaining.isNotEmpty) {
-      // Check for inline code first (highest priority)
-      RegExp codeRegex = RegExp(r'`([^`]+)`');
-      Match? codeMatch = codeRegex.firstMatch(remaining);
-      
-      // Check for bold
-      RegExp boldRegex = RegExp(r'\*\*([^*]+)\*\*');
-      Match? boldMatch = boldRegex.firstMatch(remaining);
-      
-      // Check for italic
-      RegExp italicRegex = RegExp(r'\*([^*]+)\*');
-      Match? italicMatch = italicRegex.firstMatch(remaining);
-      
-      // Find the earliest match
-      Match? earliestMatch;
-      String type = '';
-      
-      List<MapEntry<Match?, String>> matches = [
-        MapEntry(codeMatch, 'code'),
-        MapEntry(boldMatch, 'bold'),
-        MapEntry(italicMatch, 'italic'),
-      ];
-      
-      for (var entry in matches) {
-        if (entry.key != null && 
-            (earliestMatch == null || entry.key!.start < earliestMatch.start)) {
-          earliestMatch = entry.key;
-          type = entry.value;
-        }
-      }
-      
-      if (earliestMatch != null) {
-        // Add text before the match
-        if (earliestMatch.start > 0) {
-          spans.add(TextSpan(
-            text: remaining.substring(0, earliestMatch.start),
           ));
-        }
-        
-        // Add the styled text
-        String matchedText = earliestMatch.group(1)!;
-        TextSpan styledSpan;
-        
-        switch (type) {
-          case 'code':
-            styledSpan = TextSpan(
-              text: matchedText,
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                backgroundColor: codeBackground,
-                fontSize: 14,
-              ),
-            );
-            break;
-          case 'bold':
-            styledSpan = TextSpan(
-              text: matchedText,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            );
-            break;
-          case 'italic':
-            styledSpan = TextSpan(
-              text: matchedText,
-              style: const TextStyle(fontStyle: FontStyle.italic),
-            );
-            break;
-          default:
-            styledSpan = TextSpan(text: matchedText);
-        }
-        
-        spans.add(styledSpan);
-        remaining = remaining.substring(earliestMatch.end);
-      } else {
-        // No more matches, add remaining text
-        spans.add(TextSpan(text: remaining));
-        break;
-      }
-    }
-    
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(
-          fontSize: 16,
-          height: 1.6,
-          color: textSecondary,
-        ),
-        children: spans,
-      ),
-    );
-  }
+     }
+   }
+   
+   return Column(
+     crossAxisAlignment: CrossAxisAlignment.start,
+     children: widgets,
+   );
+ }
 
-  Widget _buildCodeBlock(String code) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: codeBackground,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      width: double.infinity,
-      child: Text(
-        code,
-        style: const TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 14,
-          color: textPrimary,
-          height: 1.4,
-        ),
-      ),
-    );
-  }
+ Widget _buildRichText(String text) {
+   // Handle bold, italic, and inline code
+   List<TextSpan> spans = [];
+   String remaining = text;
+   
+   while (remaining.isNotEmpty) {
+     // Check for inline code first (highest priority)
+     RegExp codeRegex = RegExp(r'`([^`]+)`');
+     Match? codeMatch = codeRegex.firstMatch(remaining);
+     
+     // Check for bold
+     RegExp boldRegex = RegExp(r'\*\*([^*]+)\*\*');
+     Match? boldMatch = boldRegex.firstMatch(remaining);
+     
+     // Check for italic
+     RegExp italicRegex = RegExp(r'\*([^*]+)\*');
+     Match? italicMatch = italicRegex.firstMatch(remaining);
+     
+     // Find the earliest match
+     Match? earliestMatch;
+     String type = '';
+     
+     List<MapEntry<Match?, String>> matches = [
+       MapEntry(codeMatch, 'code'),
+       MapEntry(boldMatch, 'bold'),
+       MapEntry(italicMatch, 'italic'),
+     ];
+     
+     for (var entry in matches) {
+       if (entry.key != null && 
+           (earliestMatch == null || entry.key!.start < earliestMatch.start)) {
+         earliestMatch = entry.key;
+         type = entry.value;
+       }
+     }
+     
+     if (earliestMatch != null) {
+       // Add text before the match
+       if (earliestMatch.start > 0) {
+         spans.add(TextSpan(
+           text: remaining.substring(0, earliestMatch.start),
+         ));
+       }
+       
+       // Add the styled text
+       String matchedText = earliestMatch.group(1)!;
+       TextSpan styledSpan;
+       
+       switch (type) {
+         case 'code':
+           styledSpan = TextSpan(
+             text: matchedText,
+             style: const TextStyle(
+               fontFamily: 'monospace',
+               backgroundColor: codeBackground,
+               fontSize: 14,
+             ),
+           );
+           break;
+         case 'bold':
+           styledSpan = TextSpan(
+             text: matchedText,
+             style: const TextStyle(fontWeight: FontWeight.bold),
+           );
+           break;
+         case 'italic':
+           styledSpan = TextSpan(
+             text: matchedText,
+             style: const TextStyle(fontStyle: FontStyle.italic),
+           );
+           break;
+         default:
+           styledSpan = TextSpan(text: matchedText);
+       }
+       
+       spans.add(styledSpan);
+       remaining = remaining.substring(earliestMatch.end);
+     } else {
+       // No more matches, add remaining text
+       spans.add(TextSpan(text: remaining));
+       break;
+     }
+   }
+   
+   return RichText(
+     text: TextSpan(
+       style: const TextStyle(
+         fontSize: 16,
+         height: 1.6,
+         color: textSecondary,
+       ),
+       children: spans,
+     ),
+   );
+ }
 
-  Widget _buildBlockquote(String text) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16),
-      padding: const EdgeInsets.only(left: 16),
-      decoration: const BoxDecoration(
-        border: Border(
-          left: BorderSide(
-            color: borderColor,
-            width: 4,
-          ),
-        ),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 16,
-          height: 1.6,
-          color: textSecondary,
-          fontStyle: FontStyle.italic,
-        ),
-      ),
-    );
-  }
+ Widget _buildCodeBlock(String code) {
+   return Container(
+     margin: const EdgeInsets.symmetric(vertical: 16),
+     padding: const EdgeInsets.all(16),
+     decoration: BoxDecoration(
+       color: codeBackground,
+       borderRadius: BorderRadius.circular(8),
+     ),
+     width: double.infinity,
+     child: Text(
+       code,
+       style: const TextStyle(
+         fontFamily: 'monospace',
+         fontSize: 14,
+         color: textPrimary,
+         height: 1.4,
+       ),
+     ),
+   );
+ }
 
-  Widget _buildBulletPoint(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            margin: const EdgeInsets.only(top: 10, right: 16),
-            decoration: const BoxDecoration(
-              color: textPrimary,
-              shape: BoxShape.circle,
-            ),
-          ),
-          Expanded(
-            child: _buildRichText(text),
-          ),
-        ],
-      ),
-    );
-  }
+ Widget _buildBlockquote(String text) {
+   return Container(
+     margin: const EdgeInsets.symmetric(vertical: 16),
+     padding: const EdgeInsets.only(left: 16),
+     decoration: const BoxDecoration(
+       border: Border(
+         left: BorderSide(
+           color: borderColor,
+           width: 4,
+         ),
+       ),
+     ),
+     child: Text(
+       text,
+       style: const TextStyle(
+         fontSize: 16,
+         height: 1.6,
+         color: textSecondary,
+         fontStyle: FontStyle.italic,
+       ),
+     ),
+   );
+ }
 
-  Widget _buildNumberedPoint(String number, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, bottom: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 24,
-            child: Text(
-              '$number.',
-              style: const TextStyle(
-                fontSize: 16,
-                color: textPrimary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: _buildRichText(text),
-          ),
-        ],
-      ),
-    );
-  }
+ Widget _buildBulletPoint(String text) {
+   return Padding(
+     padding: const EdgeInsets.only(left: 24, bottom: 4),
+     child: Row(
+       crossAxisAlignment: CrossAxisAlignment.start,
+       children: [
+         Container(
+           width: 6,
+           height: 6,
+           margin: const EdgeInsets.only(top: 10, right: 16),
+           decoration: const BoxDecoration(
+             color: textPrimary,
+             shape: BoxShape.circle,
+           ),
+         ),
+         Expanded(
+           child: _buildRichText(text),
+         ),
+       ],
+     ),
+   );
+ }
 
-  String _formatDate(String dateString) {
-    try {
-      DateTime date = DateTime.parse(dateString);
-      return '${date.day}/${date.month}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateString;
-    }
-  }
+ Widget _buildNumberedPoint(String number, String text) {
+   return Padding(
+     padding: const EdgeInsets.only(left: 24, bottom: 4),
+     child: Row(
+       crossAxisAlignment: CrossAxisAlignment.start,
+       children: [
+         SizedBox(
+           width: 24,
+           child: Text(
+             '$number.',
+             style: const TextStyle(
+               fontSize: 16,
+               color: textPrimary,
+               fontWeight: FontWeight.w500,
+             ),
+           ),
+         ),
+         Expanded(
+           child: _buildRichText(text),
+         ),
+       ],
+     ),
+   );
+ }
+
+ String _formatDate(String dateString) {
+   try {
+     DateTime date = DateTime.parse(dateString);
+     return '${date.day}/${date.month}/${date.year} at ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+   } catch (e) {
+     return dateString;
+   }
+ }
 }

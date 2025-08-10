@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/ai_chat_bot.dart'; // Import the AI chat from separate file
 import '../screens/study_history.dart'; // Import the Study History screen
 import '../tabs/notes_tab.dart';
@@ -24,6 +25,7 @@ class NoteScreen extends StatefulWidget {
 class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _selectedTabIndex = 0;
+  String? userId; // Add userId state
 
   // Professional color scheme
   static const Color primaryColor = Color(0xFF2563EB); // Professional blue
@@ -44,6 +46,20 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
         _selectedTabIndex = _tabController.index;
       });
     });
+    _loadUserId(); // Load userId on init
+  }
+
+  // Load userId from SharedPreferences
+  Future<void> _loadUserId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedUserId = prefs.getString('userId');
+      setState(() {
+        userId = storedUserId;
+      });
+    } catch (e) {
+      print('Error loading userId: $e');
+    }
   }
 
   @override
@@ -77,14 +93,23 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             margin: const EdgeInsets.only(right: 8),
             child: IconButton(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => StudyHistoryScreen(
-                      userId: widget.noteId, // Changed from noteId to userId
-                      noteTitle: widget.noteTitle ?? 'Study Notes',
+                if (userId != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => StudyHistoryScreen(
+                        userId: userId!, // Use the actual userId
+                        noteTitle: widget.noteTitle ?? 'Study Notes',
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please sign in to view study history'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               icon: Container(
                 width: 36,
@@ -169,7 +194,7 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
       body: TabBarView(
         controller: _tabController,
         children: [
-          const NotesTab(),
+          NotesTab(noteId: widget.noteId), // Correctly passing noteId to NotesTab
           QuizzesTab(
             noteId: widget.noteId,
             noteTitle: widget.noteTitle ?? 'Study Notes',
@@ -214,14 +239,23 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
               subtitle: const Text('View detailed study progress', style: TextStyle(color: textSecondary, fontSize: 12)),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => StudyHistoryScreen(
-                      userId: widget.noteId, // Changed from noteId to userId
-                      noteTitle: widget.noteTitle ?? 'Study Notes',
+                if (userId != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => StudyHistoryScreen(
+                        userId: userId!, // Use the actual userId
+                        noteTitle: widget.noteTitle ?? 'Study Notes',
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please sign in to view study history'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
             ),
             const Divider(height: 1),
