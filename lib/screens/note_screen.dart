@@ -203,8 +203,14 @@ class _NoteScreenState extends State<NoteScreen> with SingleTickerProviderStateM
             noteId: widget.noteId,
             noteTitle: widget.noteTitle ?? 'Study Notes',
           ),
-          const SummaryTab(),
-          const ResourcesTab(),
+          SummaryTab(
+            noteId: widget.noteId,
+            noteTitle: widget.noteTitle ?? 'Study Notes',
+          ),
+          ResourcesTab(
+            noteId: widget.noteId,
+            noteTitle: widget.noteTitle ?? 'Study Notes',
+          ),
         ],
       ),
     );
