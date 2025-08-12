@@ -44,6 +44,12 @@ dependencies:
     # Permissions
   permission_handler: ^11.0.1
   intl: ^0.19.0
+  youtube_player_flutter: ^9.1.2
+  flutter_inappwebview: ^6.1.5
+  pdf: ^3.10.4
+  printing: ^5.11.0
+  flutter_markdown: ^0.6.18
+  markdown: ^7.1.1
   # clerk_flutter: ^1.0.0
   
   # Audio recording (replace the old record package)

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class ResourcesTab extends StatefulWidget {
   final String noteId;
@@ -43,7 +43,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
     super.dispose();
   }
 
-  // Get stored authentication token - same as summary_tab.dart
+  // Get stored authentication token
   Future<String?> _getAuthToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -54,7 +54,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
     }
   }
 
-  // Get stored user ID - same as summary_tab.dart
+  // Get stored user ID
   Future<String?> _getUserId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -65,7 +65,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
     }
   }
 
-  // Check authentication before making API calls - same as summary_tab.dart
+  // Check authentication before making API calls
   Future<bool> _checkAuthentication() async {
     final token = await _getAuthToken();
     final userId = await _getUserId();
@@ -82,7 +82,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
     return true;
   }
 
-  // Clear authentication tokens - same as summary_tab.dart
+  // Clear authentication tokens
   Future<void> _clearAuthTokens() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -123,7 +123,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
         Uri.parse('https://zawadi-lms.onrender.com/api/resources'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // Add authentication header
+          'Authorization': 'Bearer $token',
         },
         body: json.encode({
           'topic': widget.noteTitle,
@@ -149,7 +149,6 @@ class _ResourcesTabState extends State<ResourcesTab> {
           throw Exception(data['error'] ?? 'Failed to fetch resources');
         }
       } else if (response.statusCode == 401) {
-        // Handle authentication error
         await _clearAuthTokens();
         setState(() {
           error = 'Authentication expired. Please sign in again.';
@@ -202,7 +201,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
         Uri.parse('https://zawadi-lms.onrender.com/api/resources'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // Add authentication header
+          'Authorization': 'Bearer $token',
         },
         body: json.encode({
           'topic': widget.noteTitle,
@@ -237,7 +236,6 @@ class _ResourcesTabState extends State<ResourcesTab> {
           throw Exception(data['error'] ?? 'Failed to generate resources');
         }
       } else if (response.statusCode == 401) {
-        // Handle authentication error
         await _clearAuthTokens();
         setState(() {
           error = 'Authentication expired. Please sign in again.';
@@ -290,7 +288,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
         Uri.parse('https://zawadi-lms.onrender.com/api/resources/more'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // Add authentication header
+          'Authorization': 'Bearer $token',
         },
         body: json.encode({
           'topic': widget.noteTitle,
@@ -319,7 +317,6 @@ class _ResourcesTabState extends State<ResourcesTab> {
           throw Exception(data['error'] ?? 'Failed to load more resources');
         }
       } else if (response.statusCode == 401) {
-        // Handle authentication error
         await _clearAuthTokens();
         setState(() {
           error = 'Authentication expired. Please sign in again.';
@@ -342,15 +339,33 @@ class _ResourcesTabState extends State<ResourcesTab> {
     }
   }
 
-  Future<void> _launchURL(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open video')),
-        );
-      }
+  // Extract YouTube video ID from URL
+  String? _extractVideoId(String url) {
+    return YoutubePlayer.convertUrlToId(url);
+  }
+
+  // Open video player in a modal
+  void _playVideo(YouTubeVideo video) {
+    final videoId = _extractVideoId(video.url);
+    if (videoId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid video URL'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => VideoPlayerModal(
+        video: video,
+        videoId: videoId,
+      ),
+    );
   }
 
   String _formatDuration(String publishedAt) {
@@ -382,7 +397,7 @@ class _ResourcesTabState extends State<ResourcesTab> {
       elevation: 2,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _launchURL(video.url),
+        onTap: () => _playVideo(video),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -802,56 +817,316 @@ class _ResourcesTabState extends State<ResourcesTab> {
   }
 }
 
-// YouTube Video Model
-class YouTubeVideo {
-  final String id;
-  final String title;
-  final String description;
-  final VideoThumbnail thumbnail;
-  final String channelTitle;
-  final String publishedAt;
-  final String url;
+// Video Player Modal Widget
+class VideoPlayerModal extends StatefulWidget {
+  final YouTubeVideo video;
+  final String videoId;
 
-  YouTubeVideo({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.thumbnail,
-    required this.channelTitle,
-    required this.publishedAt,
-    required this.url,
-  });
+  const VideoPlayerModal({
+    Key? key,
+    required this.video,
+    required this.videoId,
+  }) : super(key: key);
 
-  factory YouTubeVideo.fromJson(Map<String, dynamic> json) {
-    return YouTubeVideo(
-      id: json['id'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      thumbnail: VideoThumbnail.fromJson(json['thumbnail'] ?? {}),
-      channelTitle: json['channelTitle'] ?? '',
-      publishedAt: json['publishedAt'] ?? '',
-      url: json['url'] ?? '',
+  @override
+  State<VideoPlayerModal> createState() => _VideoPlayerModalState();
+}
+
+class _VideoPlayerModalState extends State<VideoPlayerModal> {
+  late YoutubePlayerController _controller;
+  bool _isPlayerReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = YoutubePlayerController(
+      initialVideoId: widget.videoId,
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+        enableCaption: true,
+        captionLanguage: 'en',
+      ),
     );
   }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Handle Bar
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(top: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.video.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.video.channelTitle,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.grey.shade100,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Video Player
+          YoutubePlayerBuilder(
+            onExitFullScreen: () {
+              // Handle exit full screen
+            },
+            player: YoutubePlayer(
+              controller: _controller,
+              showVideoProgressIndicator: true,
+              progressIndicatorColor: const Color(0xFF059669),
+              onReady: () {
+                setState(() {
+                  _isPlayerReady = true;
+                });
+              },
+              onEnded: (data) {
+                // Handle video end
+              },
+            ),
+            builder: (context, player) {
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: player,
+                ),
+              );
+            },
+          ),
+          
+          // Video Description
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Description',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.video.description,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4B5563),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Video Stats
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Video Information',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person,
+                              size: 16,
+                              color: Color(0xFF6B7280),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.video.channelTitle,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF6B7280),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height:4),
+                       Row(
+                         children: [
+                           const Icon(
+                             Icons.calendar_today,
+                             size: 16,
+                             color: Color(0xFF6B7280),
+                           ),
+                           const SizedBox(width: 8),
+                           Text(
+                             _formatDuration(widget.video.publishedAt),
+                             style: const TextStyle(
+                               fontSize: 13,
+                               color: Color(0xFF6B7280),
+                             ),
+                           ),
+                         ],
+                       ),
+                     ],
+                   ),
+                 ),
+                 const SizedBox(height: 20),
+               ],
+             ),
+           ),
+         ),
+       ],
+     ),
+   );
+ }
+
+ String _formatDuration(String publishedAt) {
+   try {
+     final publishDate = DateTime.parse(publishedAt);
+     final now = DateTime.now();
+     final difference = now.difference(publishDate);
+
+     if (difference.inDays > 365) {
+       return '${(difference.inDays / 365).floor()} year${(difference.inDays / 365).floor() > 1 ? 's' : ''} ago';
+     } else if (difference.inDays > 30) {
+       return '${(difference.inDays / 30).floor()} month${(difference.inDays / 30).floor() > 1 ? 's' : ''} ago';
+     } else if (difference.inDays > 0) {
+       return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+     } else if (difference.inHours > 0) {
+       return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+     } else {
+       return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
+     }
+   } catch (e) {
+     return 'Unknown';
+   }
+ }
+}
+
+// YouTube Video Model
+class YouTubeVideo {
+ final String id;
+ final String title;
+ final String description;
+ final VideoThumbnail thumbnail;
+ final String channelTitle;
+ final String publishedAt;
+ final String url;
+
+ YouTubeVideo({
+   required this.id,
+   required this.title,
+   required this.description,
+   required this.thumbnail,
+   required this.channelTitle,
+   required this.publishedAt,
+   required this.url,
+ });
+
+ factory YouTubeVideo.fromJson(Map<String, dynamic> json) {
+   return YouTubeVideo(
+     id: json['id'] ?? '',
+     title: json['title'] ?? '',
+     description: json['description'] ?? '',
+     thumbnail: VideoThumbnail.fromJson(json['thumbnail'] ?? {}),
+     channelTitle: json['channelTitle'] ?? '',
+     publishedAt: json['publishedAt'] ?? '',
+     url: json['url'] ?? '',
+   );
+ }
 }
 
 class VideoThumbnail {
-  final String? defaultUrl;
-  final String? medium;
-  final String? high;
+ final String? defaultUrl;
+ final String? medium;
+ final String? high;
 
-  VideoThumbnail({
-    this.defaultUrl,
-    this.medium,
-    this.high,
-  });
+ VideoThumbnail({
+   this.defaultUrl,
+   this.medium,
+   this.high,
+ });
 
-  factory VideoThumbnail.fromJson(Map<String, dynamic> json) {
-    return VideoThumbnail(
-      defaultUrl: json['default'],
-      medium: json['medium'],
-      high: json['high'],
-    );
-  }
+ factory VideoThumbnail.fromJson(Map<String, dynamic> json) {
+   return VideoThumbnail(
+     defaultUrl: json['default'],
+     medium: json['medium'],
+     high: json['high'],
+   );
+ }
 }
-
