@@ -63,6 +63,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
             // Store additional role if needed
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('role', 'user'); // Default role
+            
+            // IMPORTANT: Mark this user as a first-time user (just signed up)
+            await prefs.setBool('is_first_time_user', true);
+            print('Marked as first-time user: true');
 
             // Show success message
             _showSuccessSnackBar('Registration successful!');

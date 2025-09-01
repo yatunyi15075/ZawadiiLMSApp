@@ -1,3 +1,4 @@
+// logo_screen.dart - Updated to only show for first-time users
 import 'package:flutter/material.dart';
 import '../screens/onboarding_screen.dart';
 
@@ -14,9 +15,11 @@ class _LogoScreenState extends State<LogoScreen> {
     super.initState();
     // Navigate to onboarding screen after 2 seconds
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      );
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+        );
+      }
     });
   }
 
@@ -28,10 +31,35 @@ class _LogoScreenState extends State<LogoScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Fixed logo display with multiple path attempts
             Image.asset(
-              'assets/logo.png', // You'll need to add this asset
+              'assets/images/logo.png', // Try this path first
               width: 150,
               height: 150,
+              errorBuilder: (context, error, stackTrace) {
+                // Try alternative path
+                return Image.asset(
+                  'assets/logo.png',
+                  width: 150,
+                  height: 150,
+                  errorBuilder: (context, error2, stackTrace2) {
+                    // Final fallback - show icon instead
+                    return Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(75),
+                      ),
+                      child: const Icon(
+                        Icons.school,
+                        size: 80,
+                        color: Colors.blue,
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             const SizedBox(height: 20),
             const Text(

@@ -54,6 +54,7 @@ dependencies:
   
   # Audio recording (replace the old record package)
   flutter_sound: ^9.2.13
+  webview_flutter: ^4.13.0
 
 dev_dependencies:
   flutter_test:

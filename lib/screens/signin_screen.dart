@@ -1,3 +1,4 @@
+// signin_screen.dart - Updated to properly handle first-time user flag
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,7 +21,7 @@ class _SignInScreenState extends State<SignInScreen> {
   bool isLoading = false;
   bool _obscurePassword = true;
 
-  // Demo credentials - change these to whatever you want
+  // Demo credentials
   static const String DEMO_EMAIL = 'demo@example.com';
   static const String DEMO_PASSWORD = 'demo123';
 
@@ -38,18 +39,18 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _handleDemoLogin() async {
     try {
-      // Store demo data in SharedPreferences with consistent structure
       final prefs = await SharedPreferences.getInstance();
       
-      // Clear any existing data first
-      await prefs.clear();
-      
-      // Store demo credentials with same structure as real login
+      // Store demo credentials
       await prefs.setString('token', 'demo_token_12345');
       await prefs.setString('userId', 'demo_user_123');
-      await prefs.setString('role', 'user'); // Changed from 'parent' to 'user' for consistency
+      await prefs.setString('role', 'user');
       await prefs.setString('name', 'Demo User');
       await prefs.setString('email', DEMO_EMAIL);
+
+      // Mark as not first-time user (they've completed onboarding/sign-in flow)
+      await prefs.setBool('is_first_time_user', false);
+      print('Demo login - Marked as first-time user: false');
 
       // Verify the data was stored
       final storedToken = prefs.getString('token');
@@ -59,10 +60,8 @@ class _SignInScreenState extends State<SignInScreen> {
       print('Demo login - UserId stored: $storedUserId');
 
       if (storedToken != null && storedUserId != null) {
-        // Show success message
         _showSuccessSnackBar('Demo login successful!');
 
-        // Navigate directly to home screen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
@@ -84,7 +83,6 @@ class _SignInScreenState extends State<SignInScreen> {
       try {
         // Check if demo credentials are being used
         if (_isDemoCredentials()) {
-          // Small delay to show loading animation
           await Future.delayed(const Duration(milliseconds: 500));
           
           if (mounted) {
@@ -112,6 +110,10 @@ class _SignInScreenState extends State<SignInScreen> {
           });
 
           if (loginResult != null) {
+            // Mark as not first-time user (they've completed the auth flow)
+            await prefs.setBool('is_first_time_user', false);
+            print('Sign in - Marked as first-time user: false');
+            
             // Verify that data was stored correctly
             final storedToken = prefs.getString('token');
             final storedUserId = prefs.getString('userId');
@@ -120,10 +122,8 @@ class _SignInScreenState extends State<SignInScreen> {
             print('Real login - UserId stored: $storedUserId');
             
             if (storedToken != null && storedUserId != null) {
-              // Show success message
               _showSuccessSnackBar('Logged in successfully!');
 
-              // Navigate directly to home screen
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(builder: (_) => const HomeScreen()),
               );
@@ -142,7 +142,6 @@ class _SignInScreenState extends State<SignInScreen> {
           
           String errorMessage = 'Network error. Please check your connection and try again.';
           
-          // Handle specific error types
           if (error.toString().contains('SocketException')) {
             errorMessage = 'No internet connection. Please check your network.';
           } else if (error.toString().contains('TimeoutException')) {

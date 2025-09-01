@@ -20,7 +20,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   bool _isRecording = false;
   bool _isLoading = false;
   bool _hasRecording = false;
-  String _selectedDialect = 'en-US';
+  String _selectedDialect = 'Auto detect';
   
   FlutterSoundRecorder? _audioRecorder;
   String? _audioPath;
@@ -30,16 +30,15 @@ class _RecordingScreenState extends State<RecordingScreen>
   late Animation<double> _pulseAnimation;
   late Animation<double> _waveAnimation;
 
-  // Updated to match the upload screen base URL exactly
-  static const String baseUrl = 'https://zawadi-project.onrender.com';
+  static const String baseUrl = 'https://zawadi-lms.onrender.com';
   static const int maxRetries = 3;
-  static const Duration requestTimeout = Duration(seconds: 120); // Increased timeout
+  static const Duration requestTimeout = Duration(seconds: 120);
 
   final List<Map<String, String>> _languages = [
-    {'code': 'en-US', 'name': 'English (US)', 'flag': '🇺🇸'},
-    {'code': 'en-GB', 'name': 'English (UK)', 'flag': '🇬🇧'},
-    {'code': 'es-ES', 'name': 'Spanish', 'flag': '🇪🇸'},
-    {'code': 'fr-FR', 'name': 'French', 'flag': '🇫🇷'},
+    {'code': 'Auto detect', 'name': 'Auto detect', 'flag': '🌐'},
+    {'code': 'English', 'name': 'English', 'flag': '🇺🇸'},
+    {'code': 'French', 'name': 'French', 'flag': '🇫🇷'},
+    {'code': 'Spanish', 'name': 'Spanish', 'flag': '🇪🇸'},
   ];
 
   @override
@@ -86,35 +85,63 @@ class _RecordingScreenState extends State<RecordingScreen>
     super.dispose();
   }
 
-  // Updated to match upload screen pattern exactly
   Future<String?> _getAuthToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
   }
 
   Future<bool> _checkPermissions() async {
-    final micPermission = await Permission.microphone.request();
-    final storagePermission = await Permission.storage.request();
+    // Request multiple permissions that might be needed
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.microphone,
+      Permission.storage,
+      Permission.manageExternalStorage,
+    ].request();
     
-    return micPermission.isGranted && storagePermission.isGranted;
+    // Check if microphone permission is granted (most important)
+    bool micGranted = statuses[Permission.microphone]?.isGranted ?? false;
+    
+    if (!micGranted) {
+      // Try to get permanent denial status and guide user
+      if (statuses[Permission.microphone]?.isPermanentlyDenied ?? false) {
+        _showSnackBar('Microphone permission permanently denied. Please enable it in settings.', isError: true);
+        await openAppSettings();
+      } else {
+        _showSnackBar('Microphone permission is required to record audio.', isError: true);
+      }
+      return false;
+    }
+    
+    return true;
   }
 
   Future<void> _startRecording() async {
     try {
       if (!await _checkPermissions()) {
-        _showSnackBar('Microphone permission is required', isError: true);
         return;
       }
 
-      final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-      final String filePath = '${appDocumentsDir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.aac';
+      // Get a proper directory for recording
+      Directory? directory;
+      try {
+        directory = await getApplicationDocumentsDirectory();
+      } catch (e) {
+        // Fallback to temporary directory if documents directory fails
+        directory = await getTemporaryDirectory();
+      }
       
-      // Use AAC format which is more widely supported
+      final String fileName = 'recording_${DateTime.now().millisecondsSinceEpoch}.wav';
+      final String filePath = '${directory.path}/$fileName';
+      
+      print('Starting recording to: $filePath');
+      
+      // Start recording with proper codec and settings
       await _audioRecorder!.startRecorder(
         toFile: filePath,
-        codec: Codec.aacADTS,
+        codec: Codec.pcm16WAV, // Use WAV format
         bitRate: 128000,
         sampleRate: 44100,
+        numChannels: 1, // Mono recording for smaller file size
       );
       
       setState(() {
@@ -128,10 +155,10 @@ class _RecordingScreenState extends State<RecordingScreen>
       _waveController.repeat();
       _startTimer();
       
-      print('Recording started: $filePath');
+      print('Recording started successfully');
     } catch (e) {
       print('Error starting recording: $e');
-      _showSnackBar('Failed to start recording: $e', isError: true);
+      _showSnackBar('Failed to start recording: ${e.toString()}', isError: true);
     }
   }
 
@@ -141,16 +168,16 @@ class _RecordingScreenState extends State<RecordingScreen>
       _pulseController.stop();
       _waveController.stop();
       
-      print('Recording stopped: $path');
+      print('Recording stopped. Path: $path');
       
-      // Verify file exists and has content
       if (path != null) {
         final file = File(path);
         if (await file.exists()) {
           final fileSize = await file.length();
           print('Audio file size: $fileSize bytes');
           
-          if (fileSize > 0) {
+          // Check if file has meaningful content (more than just headers)
+          if (fileSize > 1000) { // At least 1KB to ensure it's not just headers
             setState(() {
               _isRecording = false;
               _audioPath = path;
@@ -158,7 +185,10 @@ class _RecordingScreenState extends State<RecordingScreen>
             });
             _showSnackBar('Recording completed successfully!');
           } else {
-            throw Exception('Audio file is empty');
+            // File is too small, likely just headers
+            _showSnackBar('Recording failed - audio file is too small. Please try recording for longer.', isError: true);
+            await file.delete(); // Clean up the empty file
+            _resetRecording();
           }
         } else {
           throw Exception('Audio file was not created');
@@ -168,7 +198,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       }
     } catch (e) {
       print('Error stopping recording: $e');
-      _showSnackBar('Failed to stop recording: $e', isError: true);
+      _showSnackBar('Failed to stop recording: ${e.toString()}', isError: true);
       setState(() {
         _isRecording = false;
         _hasRecording = false;
@@ -180,7 +210,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   void _startTimer() {
     Future.doWhile(() async {
       await Future.delayed(const Duration(seconds: 1));
-      if (_isRecording) {
+      if (_isRecording && mounted) {
         setState(() {
           _recordingDuration = Duration(seconds: _recordingDuration.inSeconds + 1);
         });
@@ -190,100 +220,12 @@ class _RecordingScreenState extends State<RecordingScreen>
     });
   }
 
-  // Enhanced error handling for different response types
-  String _parseErrorMessage(http.Response response) {
-    try {
-      // Try to parse as JSON first
-      final errorData = jsonDecode(response.body);
-      if (errorData['message'] != null) {
-        return errorData['message'];
-      } else if (errorData['error'] != null) {
-        return errorData['error'];
-      }
-    } catch (e) {
-      // If JSON parsing fails, check if it's HTML (like Cloudflare errors)
-      if (response.body.toLowerCase().contains('<html>')) {
-        if (response.statusCode == 502) {
-          return 'Server temporarily unavailable. Please try again in a moment.';
-        } else if (response.statusCode == 503) {
-          return 'Service temporarily unavailable. Please try again later.';
-        } else if (response.statusCode == 504) {
-          return 'Request timed out. Please try again.';
-        } else {
-          return 'Server error occurred. Please try again later.';
-        }
-      }
-      print('Could not parse error response: $e');
-    }
-    return 'Request failed with status ${response.statusCode}';
-  }
-
-  // Enhanced retry logic with exponential backoff
-  Future<http.Response> _makeRequestWithRetry(Future<http.Response> Function() requestFunction) async {
-    int attempts = 0;
-    Duration delay = const Duration(seconds: 2);
-
-    while (attempts < maxRetries) {
-      try {
-        attempts++;
-        print('Attempt $attempts of $maxRetries');
-
-        final response = await requestFunction();
-        
-        // Check if we should retry based on status code
-        if (_shouldRetry(response.statusCode) && attempts < maxRetries) {
-          print('Request failed with status ${response.statusCode}, retrying in ${delay.inSeconds} seconds...');
-          await Future.delayed(delay);
-          delay = Duration(seconds: delay.inSeconds * 2); // Exponential backoff
-          continue;
-        }
-        
-        return response;
-      } catch (e) {
-        print('Request attempt $attempts failed: $e');
-        
-        if (attempts >= maxRetries) {
-          rethrow;
-        }
-        
-        // Check if we should retry based on error type
-        if (_shouldRetryOnError(e)) {
-          print('Retrying in ${delay.inSeconds} seconds...');
-          await Future.delayed(delay);
-          delay = Duration(seconds: delay.inSeconds * 2);
-          continue;
-        } else {
-          rethrow;
-        }
-      }
-    }
-    
-    throw Exception('Max retry attempts exceeded');
-  }
-
-  bool _shouldRetry(int statusCode) {
-    // Retry on server errors and some client errors
-    return statusCode >= 500 || // Server errors
-           statusCode == 408 || // Request timeout
-           statusCode == 429;   // Too many requests
-  }
-
-  bool _shouldRetryOnError(dynamic error) {
-    final errorString = error.toString().toLowerCase();
-    return errorString.contains('timeout') ||
-           errorString.contains('connection') ||
-           errorString.contains('network') ||
-           errorString.contains('socket') ||
-           errorString.contains('reset by peer');
-  }
-
   Future<void> _handleRecordedAudioSubmit() async {
     if (_audioPath == null) {
       _showSnackBar('Please record audio first.', isError: true);
       return;
     }
 
-    // Validate file exists and has content
     final audioFile = File(_audioPath!);
     if (!await audioFile.exists()) {
       _showSnackBar('Audio file not found. Please record again.', isError: true);
@@ -291,29 +233,19 @@ class _RecordingScreenState extends State<RecordingScreen>
     }
 
     final fileSize = await audioFile.length();
-    if (fileSize == 0) {
-      _showSnackBar('Audio file is empty. Please record again.', isError: true);
+    print('Submitting audio file: $_audioPath (${fileSize} bytes)');
+
+    // Check file size before submitting
+    if (fileSize < 1000) {
+      _showSnackBar('Audio file is too small. Please record for a longer duration.', isError: true);
       return;
     }
-
-    print('Submitting audio file: $_audioPath (${fileSize} bytes)');
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Get authentication token using the exact same pattern as upload screen
-      final token = await _getAuthToken();
-      if (token == null) {
-        _showSnackBar('No authentication token found. Please log in again.', isError: true);
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      // Get userId and currentFolderId from SharedPreferences (same as upload screen)
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
       final currentFolderId = prefs.getString('currentFolderId');
@@ -326,81 +258,73 @@ class _RecordingScreenState extends State<RecordingScreen>
         return;
       }
 
-      // Use retry logic for the upload request
-      final response = await _makeRequestWithRetry(() async {
-        // Create multipart request (same as upload screen)
-        final request = http.MultipartRequest(
-          'POST',
-          Uri.parse('$baseUrl/api/audio/upload'),
-        );
+      print('Preparing multipart request...');
+      print('User ID: $userId');
+      print('Folder ID: $currentFolderId');
+      print('Dialect: $_selectedDialect');
+      print('File path: $_audioPath');
+      print('File size: $fileSize bytes');
 
-        // Add authorization header using the exact same pattern as upload screen
-        request.headers.addAll({
-          'Authorization': 'Bearer $token',
-        });
+      // Create multipart request
+      final uri = Uri.parse('$baseUrl/api/audio/upload');
+      final request = http.MultipartRequest('POST', uri);
 
-        // Create proper filename with correct extension
-        final fileName = 'recording_${DateTime.now().millisecondsSinceEpoch}.aac';
-        
-        // Add the audio file
-        final multipartFile = await http.MultipartFile.fromPath(
-          'audio',
-          _audioPath!,
-          filename: fileName,
-        );
-        
-        request.files.add(multipartFile);
+      // Add the audio file - CRITICAL: Use 'audio' as field name to match backend
+      final multipartFile = await http.MultipartFile.fromPath(
+        'audio', // This MUST match your backend expectation
+        _audioPath!,
+        filename: 'recording_${DateTime.now().millisecondsSinceEpoch}.wav',
+      );
+      
+      request.files.add(multipartFile);
 
-        // Add form fields (same as upload screen)
-        request.fields['dialect'] = _selectedDialect;
-        request.fields['userId'] = userId;
-        
-        if (currentFolderId != null) {
-          request.fields['folderId'] = currentFolderId;
-        }
-
-        print('Sending request to: ${request.url}');
-        print('Headers: ${request.headers}');
-        print('Fields: ${request.fields}');
-        print('File: ${multipartFile.filename} (${multipartFile.length} bytes)');
-
-        final streamedResponse = await request.send().timeout(requestTimeout);
-        return await http.Response.fromStream(streamedResponse);
-      });
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
-      if (response.statusCode == 401) {
-        _showSnackBar('Authentication failed. Please log in again.', isError: true);
-        return;
-      } else if (response.statusCode == 413) {
-        _showSnackBar('Audio file is too large. Please record a shorter audio.', isError: true);
-        return;
-      } else if (response.statusCode == 415) {
-        _showSnackBar('Audio format not supported. Please try recording again.', isError: true);
-        return;
-      } else if (response.statusCode != 200) {
-        final errorMessage = _parseErrorMessage(response);
-        _showSnackBar(errorMessage, isError: true);
-        return;
+      // Add form fields
+      request.fields['dialect'] = _selectedDialect;
+      request.fields['userId'] = userId;
+      
+      if (currentFolderId != null && currentFolderId.isNotEmpty) {
+        request.fields['folderId'] = currentFolderId;
       }
 
-      final data = jsonDecode(response.body);
+      // Add headers if needed
+      final token = await _getAuthToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
 
-      // Handle response using the same pattern as upload screen
-      if (data['notes'] != null) {
-        // If notes are directly available
+      print('Sending request...');
+      print('URL: ${request.url}');
+      print('Fields: ${request.fields}');
+      print('Files: ${request.files.map((f) => '${f.field}: ${f.filename} (${f.length} bytes)')}');
+
+      // Send request with timeout
+      final streamedResponse = await request.send().timeout(requestTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      print('Response received!');
+      print('Status: ${response.statusCode}');
+      print('Body: ${response.body}');
+
+      // Handle different response codes
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
         _handleSuccessfulProcessing(data);
-      } else if (data['fileUri'] != null) {
-        // If we need to transcribe
-        await _transcribeAudio(data['fileUri'], userId, currentFolderId, token);
       } else {
-        _showSnackBar('No notes or transcript available in response', isError: true);
+        String errorMessage = 'Request failed with status ${response.statusCode}';
+        
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorMessage;
+        } catch (e) {
+          // Use default error message if JSON parsing fails
+        }
+        
+        _showSnackBar(errorMessage, isError: true);
       }
+      
     } catch (error) {
       print('Error processing recorded audio: $error');
-      String userFriendlyMessage = 'Failed to generate notes from recorded audio.';
+      String userFriendlyMessage = 'Failed to process recorded audio.';
       
       final errorString = error.toString().toLowerCase();
       if (errorString.contains('timeout')) {
@@ -413,74 +337,21 @@ class _RecordingScreenState extends State<RecordingScreen>
       
       _showSnackBar(userFriendlyMessage, isError: true);
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _transcribeAudio(String fileUri, String userId, String? currentFolderId, String token) async {
-    try {
-      // Prepare request body (same as upload screen)
-      Map<String, dynamic> requestBody = {
-        'fileUri': fileUri,
-        'userId': userId,
-        'dialect': _selectedDialect,
-      };
-
-      if (currentFolderId != null) {
-        requestBody['folderId'] = currentFolderId;
-      }
-
-      // Use retry logic for transcription request
-      final response = await _makeRequestWithRetry(() async {
-        return await http.post(
-          Uri.parse('$baseUrl/api/audio/transcribe'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(requestBody),
-        ).timeout(requestTimeout);
-      });
-
-      print('Transcription response status: ${response.statusCode}');
-      print('Transcription response body: ${response.body}');
-
-      if (response.statusCode == 401) {
-        _showSnackBar('Authentication failed. Please log in again.', isError: true);
-        return;
-      } else if (response.statusCode != 200) {
-        final errorMessage = _parseErrorMessage(response);
-        _showSnackBar(errorMessage, isError: true);
-        return;
-      }
-
-      final data = jsonDecode(response.body);
-      _handleSuccessfulProcessing(data);
-    } catch (error) {
-      print('Transcription error: $error');
-      String userFriendlyMessage = 'Transcription failed.';
-      
-      final errorString = error.toString().toLowerCase();
-      if (errorString.contains('timeout')) {
-        userFriendlyMessage = 'Transcription timed out. Please try again.';
-      } else if (errorString.contains('connection')) {
-        userFriendlyMessage = 'Connection failed during transcription. Please try again.';
-      }
-      
-      _showSnackBar(userFriendlyMessage, isError: true);
-    }
-  }
-
-  // Handle successful processing using the same pattern as upload screen
   void _handleSuccessfulProcessing(Map<String, dynamic> data) {
     String notes = data['notes'] ?? data['transcript'] ?? 'No notes generated.';
     
     _showSnackBar('Audio processed successfully!');
     
     if (data['noteId'] != null) {
-      // Navigate to the specific note view (same as upload screen)
+      // Navigate to the specific note view
       Navigator.pushNamed(
         context, 
         '/notes/${data['noteId']}',
@@ -607,7 +478,7 @@ class _RecordingScreenState extends State<RecordingScreen>
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
-        duration: Duration(seconds: isError ? 5 : 3), // Show errors longer
+        duration: Duration(seconds: isError ? 5 : 3),
       ),
     );
   }
@@ -654,7 +525,6 @@ class _RecordingScreenState extends State<RecordingScreen>
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Animated wave bars
               if (_isRecording)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -678,7 +548,6 @@ class _RecordingScreenState extends State<RecordingScreen>
                   }),
                 ),
               
-              // Center content
               if (!_isRecording)
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -726,7 +595,6 @@ class _RecordingScreenState extends State<RecordingScreen>
         elevation: 0,
         centerTitle: true,
         actions: [
-          // Language Selector
           PopupMenuButton<String>(
             initialValue: _selectedDialect,
             onSelected: (value) {
@@ -775,12 +643,10 @@ class _RecordingScreenState extends State<RecordingScreen>
             children: [
               const Spacer(),
               
-              // Waveform Visualizer
               _buildWaveformVisualizer(),
               
               const SizedBox(height: 32),
               
-              // Timer Display
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
@@ -807,7 +673,6 @@ class _RecordingScreenState extends State<RecordingScreen>
               
               const SizedBox(height: 48),
               
-              // Control Buttons
               if (_isLoading)
                 Column(
                   children: [
@@ -843,7 +708,6 @@ class _RecordingScreenState extends State<RecordingScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    // Cancel/Reset Button
                     _buildControlButton(
                       icon: _hasRecording ? Icons.refresh : Icons.close,
                       color: Colors.red,
@@ -857,7 +721,6 @@ class _RecordingScreenState extends State<RecordingScreen>
                       label: _hasRecording ? 'Reset' : 'Cancel',
                     ),
                     
-                    // Record/Stop Button
                     AnimatedBuilder(
                       animation: _pulseAnimation,
                       builder: (context, child) {
@@ -874,7 +737,6 @@ class _RecordingScreenState extends State<RecordingScreen>
                       },
                     ),
                     
-                    // Submit Button
                     _buildControlButton(
                       icon: Icons.send,
                       color: Colors.green,
@@ -886,7 +748,6 @@ class _RecordingScreenState extends State<RecordingScreen>
               
               const Spacer(),
               
-              // Instructions
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(

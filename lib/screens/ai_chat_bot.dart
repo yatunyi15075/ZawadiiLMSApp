@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-// Chat Message Model - moved to top for better accessibility
+// Chat Message Model
 class ChatMessage {
   final String text;
   final bool isUser;
@@ -13,6 +13,53 @@ class ChatMessage {
     required this.isUser,
     required this.timestamp,
   });
+}
+
+// Helper widget to format text like in the webapp
+class FormattedText extends StatelessWidget {
+  final String text;
+  const FormattedText({Key? key, required this.text}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // Split text by ** markers
+    final parts = text.split(RegExp(r'(\*\*.*?\*\*)'));
+
+    return Wrap(
+      children: parts.map((part) {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          final cleanText = part.substring(2, part.length - 2);
+
+          if (cleanText.startsWith("Core Function:")) {
+            return Text(
+              "\n$cleanText\n",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+                fontSize: 16,
+              ),
+            );
+          } else {
+            return Text(
+              cleanText,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.blueAccent,
+              ),
+            );
+          }
+        } else {
+          return Text(
+            part,
+            style: const TextStyle(
+              color: Colors.black, // Ensure bot response text is visible
+              fontSize: 16,
+            ),
+          );
+        }
+      }).toList(),
+    );
+  }
 }
 
 // AI Chat Screen
@@ -28,7 +75,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
   final List<ChatMessage> _messages = [];
   bool _isLoading = false;
 
-  // Professional color scheme - changed from orange to blue
+  // Colors
   static const Color primaryColor = Color(0xFF2563EB);
   static const Color surfaceColor = Color(0xFFF8FAFC);
   static const Color cardColor = Colors.white;
@@ -38,7 +85,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
   @override
   void initState() {
     super.initState();
-    // Add initial bot message
     _messages.add(ChatMessage(
       text: "Hello! I'm Asiko AI your assistant. How can I help you today?",
       isUser: false,
@@ -46,13 +92,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     ));
   }
 
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  // Generate AI response using Backend API - same as Zawadii bot
   Future<void> _generateAIResponse(String userMessage) async {
     setState(() {
       _isLoading = true;
@@ -61,17 +100,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
     try {
       final response = await http.post(
         Uri.parse('https://zawadi-lms.onrender.com/api/zawadii-bot/generate'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: json.encode({
-          'message': userMessage,
-        }),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'message': userMessage}),
       );
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        
+
         setState(() {
           _messages.add(ChatMessage(
             text: responseData['message'],
@@ -80,29 +115,23 @@ class _AIChatScreenState extends State<AIChatScreen> {
           ));
         });
       } else {
-        // Handle error response
-        setState(() {
-          _messages.add(ChatMessage(
-            text: "I'm sorry, but I encountered an error. Could you please try again?",
-            isUser: false,
-            timestamp: DateTime.now(),
-          ));
-        });
+        _addErrorMessage();
       }
     } catch (error) {
-      print('Error generating AI response: $error');
-      setState(() {
-        _messages.add(ChatMessage(
-          text: "I'm sorry, but I encountered an error. Could you please try again?",
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-      });
+      _addErrorMessage();
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  void _addErrorMessage() {
+    _messages.add(ChatMessage(
+      text: "I'm sorry, but I encountered an error. Could you please try again?",
+      isUser: false,
+      timestamp: DateTime.now(),
+    ));
   }
 
   void _sendMessage() {
@@ -118,10 +147,19 @@ class _AIChatScreenState extends State<AIChatScreen> {
       ));
     });
 
-    // Generate AI response using the API
     _generateAIResponse(userMessage);
-
     _messageController.clear();
+  }
+
+  void _clearChat() {
+    setState(() {
+      _messages.clear();
+      _messages.add(ChatMessage(
+        text: "Chat cleared. How can I help you?",
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+    });
   }
 
   @override
@@ -141,11 +179,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 color: primaryColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.psychology_rounded,
-                color: primaryColor,
-                size: 20,
-              ),
+              child: const Icon(Icons.psychology_rounded,
+                  color: primaryColor, size: 20),
             ),
             const SizedBox(width: 12),
             const Column(
@@ -164,13 +199,18 @@ class _AIChatScreenState extends State<AIChatScreen> {
                   style: TextStyle(
                     fontSize: 12,
                     color: textSecondary,
-                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            onPressed: _clearChat,
+            icon: const Icon(Icons.delete_forever, color: Colors.red),
+          )
+        ],
       ),
       body: Column(
         children: [
@@ -187,190 +227,117 @@ class _AIChatScreenState extends State<AIChatScreen> {
               },
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: InputDecoration(
-                          hintText: 'Type your message...',
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          hintStyle: TextStyle(color: Colors.grey[600]),
-                        ),
-                        maxLines: null,
-                        enabled: !_isLoading,
-                        onSubmitted: (_) => _sendMessage(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: _isLoading ? Colors.grey[400] : primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: _isLoading ? null : _sendMessage,
-                      icon: const Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildInputArea(),
         ],
       ),
     );
   }
 
   Widget _buildLoadingBubble() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.smart_toy_rounded,
-              color: primaryColor,
-              size: 16,
-            ),
+    return Row(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: primaryColor.withOpacity(0.1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 5,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Thinking...',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          child: const Icon(Icons.smart_toy, color: primaryColor, size: 18),
+        ),
+        const Text("Thinking...",
+            style: TextStyle(color: Colors.grey, fontSize: 14)),
+      ],
     );
   }
 
   Widget _buildMessageBubble(ChatMessage message) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment:
-            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: [
-          if (!message.isUser) ...[
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
-                shape: BoxShape.circle,
+    return Column(
+      crossAxisAlignment:
+          message.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment:
+              message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          children: [
+            if (!message.isUser)
+              Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child:
+                    const Icon(Icons.smart_toy, color: primaryColor, size: 18),
               ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                color: primaryColor,
-                size: 16,
+            Flexible(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: message.isUser ? primaryColor : Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: message.isUser
+                    ? Text(
+                        message.text,
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                      )
+                    : FormattedText(text: message.text),
               ),
             ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: message.isUser ? primaryColor : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 5,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: Text(
-                message.text,
-                style: TextStyle(
-                  color: message.isUser ? Colors.white : Colors.black87,
-                  fontSize: 16,
+            if (message.isUser)
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
+                child:
+                    const Icon(Icons.person, color: primaryColor, size: 18),
               ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 40, right: 40, top: 4),
+          child: Text(
+            "${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}",
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        )
+      ],
+    );
+  }
+
+  Widget _buildInputArea() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: const BoxDecoration(color: Colors.white, boxShadow: [
+        BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))
+      ]),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              style: const TextStyle(
+                color: Colors.black, // Fix: typed text is now black
+                fontSize: 16,
+              ),
+              decoration: const InputDecoration(
+                hintText: "Type your message...",
+                hintStyle: TextStyle(color: Colors.grey),
+                border: InputBorder.none,
+              ),
+              onSubmitted: (_) => _sendMessage(),
             ),
           ),
-          if (message.isUser) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: primaryColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.person,
-                color: primaryColor,
-                size: 16,
-              ),
-            ),
-          ],
+          IconButton(
+            onPressed: _isLoading ? null : _sendMessage,
+            icon: const Icon(Icons.send, color: primaryColor),
+          )
         ],
       ),
     );

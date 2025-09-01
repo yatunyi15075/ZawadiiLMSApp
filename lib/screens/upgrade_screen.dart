@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../widgets/custom_button.dart';
 import '../theme/app_theme.dart';
+import 'upgrade_plan_selector.dart';
+import 'upgrade_payment_handler.dart';
+import '../models/upgrade_models.dart';
+import '../services/upgrade_service.dart';
 
 class UpgradeScreen extends StatefulWidget {
   const UpgradeScreen({Key? key}) : super(key: key);
@@ -10,576 +13,430 @@ class UpgradeScreen extends StatefulWidget {
   _UpgradeScreenState createState() => _UpgradeScreenState();
 }
 
-class _UpgradeScreenState extends State<UpgradeScreen> {
-  int _selectedPlanIndex = 1; // Default to monthly plan
-  bool _isKenyanUser = true; // Default to Kenyan user, you can determine this based on user location
+class _UpgradeScreenState extends State<UpgradeScreen> with TickerProviderStateMixin {
+  String _selectedRegion = 'kenya';
+  SubscriptionPlan? _selectedPlan;
+  bool _isLoading = false;
+  String _errorMessage = '';
+  String _successMessage = '';
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
-  // Plans for Kenyan users (KSH)
-  final List<Map<String, dynamic>> _kenyaPlans = [
-    {
-      'title': 'Weekly',
-      'price': 'KSh 650/week',
-      'savings': null,
-      'paystackLink': 'https://paystack.com/pay/kenya-weekly-plan-fake',
-    },
-    {
-      'title': 'Monthly',
-      'price': 'KSh 2,400/month',
-      'savings': 'Most Popular',
-      'paystackLink': 'https://paystack.com/pay/kenya-monthly-plan-fake',
-    },
-    {
-      'title': 'Yearly',
-      'price': 'KSh 19,200/year',
-      'savings': 'Save 33%',
-      'paystackLink': 'https://paystack.com/pay/kenya-yearly-plan-fake',
-    },
-  ];
+  final UpgradeService _upgradeService = UpgradeService();
 
-  // Plans for international users (USD)
-  final List<Map<String, dynamic>> _internationalPlans = [
-    {
-      'title': 'Weekly',
-      'price': '\$4.99/week',
-      'savings': null,
-      'paystackLink': 'https://paystack.com/pay/international-weekly-plan-fake',
-    },
-    {
-      'title': 'Monthly',
-      'price': '\$18.99/month',
-      'savings': 'Most Popular',
-      'paystackLink': 'https://paystack.com/pay/international-monthly-plan-fake',
-    },
-    {
-      'title': 'Yearly',
-      'price': '\$149.99/year',
-      'savings': 'Save 34%',
-      'paystackLink': 'https://paystack.com/pay/international-yearly-plan-fake',
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+    _fadeController.forward();
+  }
 
-  List<Map<String, dynamic>> get _currentPlans => 
-      _isKenyanUser ? _kenyaPlans : _internationalPlans;
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  void _handleRegionChanged(String region) {
+    setState(() {
+      _selectedRegion = region;
+      _selectedPlan = null; // Reset plan when region changes
+      _errorMessage = '';
+      _successMessage = '';
+    });
+  }
+
+  void _handlePlanSelected(SubscriptionPlan plan) {
+    setState(() {
+      _selectedPlan = plan;
+      _errorMessage = '';
+      _successMessage = '';
+    });
+  }
+
+  void _handlePaymentInitiated() {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+      _successMessage = '';
+    });
+  }
+
+  void _handlePaymentCompleted(bool success, String message) {
+    setState(() {
+      _isLoading = false;
+      if (success) {
+        _successMessage = message;
+        _errorMessage = '';
+      } else {
+        _errorMessage = message;
+        _successMessage = '';
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
           'Upgrade to Premium',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+            color: Color(0xFF1E293B),
           ),
         ),
         backgroundColor: Colors.white,
-        foregroundColor: AppTheme.primaryColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.primaryColor),
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF64748B), size: 20),
           onPressed: () => Navigator.of(context).pop(),
         ),
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header Section
-            Container(
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
-                ),
-              ),
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  // Premium Icon
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.workspace_premium,
-                      size: 48,
-                      color: AppTheme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Unlock Premium Features',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Get unlimited access to all AI-powered features',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey.shade600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Location Selector
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isKenyanUser = true;
-                            _selectedPlanIndex = 1; // Reset to monthly
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: _isKenyanUser ? AppTheme.primaryColor : Colors.transparent,
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              bottomLeft: Radius.circular(16),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                '🇰🇪',
-                                style: TextStyle(fontSize: 20),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Kenya',
-                                style: TextStyle(
-                                  color: _isKenyanUser ? Colors.white : Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _isKenyanUser = false;
-                            _selectedPlanIndex = 1; // Reset to monthly
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: !_isKenyanUser ? AppTheme.primaryColor : Colors.transparent,
-                            borderRadius: const BorderRadius.only(
-                              topRight: Radius.circular(16),
-                              bottomRight: Radius.circular(16),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                '🌍',
-                                style: TextStyle(fontSize: 20),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'International',
-                                style: TextStyle(
-                                  color: !_isKenyanUser ? Colors.white : Colors.black87,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Features List
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Premium Features',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildFeaturesList(),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Plan Selection
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Choose Your Plan',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildPlanSelection(),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Purchase Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: CustomButton(
-                text: 'Upgrade Now',
-                backgroundColor: AppTheme.primaryColor,
-                onPressed: () => _handlePurchase(),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: const Color(0xFFE2E8F0),
+          ),
         ),
+      ),
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildRegionSelector(),
+              UpgradePlanSelector(
+                selectedRegion: _selectedRegion,
+                selectedPlan: _selectedPlan,
+                onPlanSelected: _handlePlanSelected,
+                isLoading: _isLoading,
+              ),
+              if (_selectedPlan != null) ...[
+                const SizedBox(height: 24),
+                UpgradePaymentHandler(
+                  selectedPlan: _selectedPlan!,
+                  selectedRegion: _selectedRegion,
+                  onPaymentInitiated: _handlePaymentInitiated,
+                  onPaymentCompleted: _handlePaymentCompleted,
+                  isLoading: _isLoading,
+                ),
+              ],
+              if (_errorMessage.isNotEmpty) _buildErrorMessage(),
+              if (_successMessage.isNotEmpty) _buildSuccessMessage(),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.primaryColor.withOpacity(0.1),
+                  AppTheme.primaryColor.withOpacity(0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.workspace_premium_outlined,
+              size: 40,
+              color: AppTheme.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Unlock Premium Features',
+            style: TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+              letterSpacing: -0.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Get unlimited access to all premium features',
+            style: TextStyle(
+              fontSize: 16,
+              color: Color(0xFF64748B),
+              height: 1.4,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          _buildFeaturesList(),
+        ],
       ),
     );
   }
 
   Widget _buildFeaturesList() {
     final features = [
-      'Unlimited Audio Notes',
-      'Feynman AI Notes & Tests',
-      'Unlimited PDF Processing',
-      'Advanced Mindmap Generation',
-      'Premium AI Features',
-      '24/7 Priority Support',
-      'Cloud Sync & Backup',
-      'Export to Multiple Formats',
+      {'icon': Icons.chat_bubble_outline, 'text': 'Unlimited AI conversations'},
+      {'icon': Icons.flash_on_outlined, 'text': 'Advanced AI capabilities'},
+      {'icon': Icons.support_agent_outlined, 'text': 'Priority support'},
+      {'icon': Icons.download_outlined, 'text': 'Export conversations'},
+      {'icon': Icons.block, 'text': 'Ad-free experience'},
     ];
 
-    return Column(
-      children: features.map((feature) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6.0),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.check,
-                  color: Colors.green.shade700,
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  feature,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: Colors.black87,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: features.map((feature) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    feature['icon'] as IconData,
+                    color: const Color(0xFF10B981),
+                    size: 16,
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    feature['text'] as String,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF374151),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
-  Widget _buildPlanSelection() {
-    return Column(
-      children: List.generate(_currentPlans.length, (index) {
-        final plan = _currentPlans[index];
-        final isSelected = _selectedPlanIndex == index;
-        final isPopular = plan['savings'] == 'Most Popular';
-        
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              _selectedPlanIndex = index;
-            });
-          },
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(
-                color: isSelected ? AppTheme.primaryColor : Colors.grey.shade300,
-                width: isSelected ? 2 : 1,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
+  Widget _buildRegionSelector() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Select Your Region',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
             ),
-            child: Stack(
+          ),
+          const SizedBox(height: 16),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
               children: [
-                if (isPopular)
-                  Positioned(
-                    top: -1,
-                    left: 16,
-                    right: 16,
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _handleRegionChanged('kenya'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.orange,
-                        borderRadius: BorderRadius.circular(12),
+                        color: _selectedRegion == 'kenya' 
+                            ? Colors.white 
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: _selectedRegion == 'kenya' 
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
                       ),
-                      child: const Text(
-                        'Most Popular',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
+                      child: Column(
+                        children: [
+                          const Text('🇰🇪', style: TextStyle(fontSize: 24)),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Kenya',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: _selectedRegion == 'kenya' 
+                                  ? FontWeight.w600 
+                                  : FontWeight.w500,
+                              color: _selectedRegion == 'kenya' 
+                                  ? const Color(0xFF1E293B) 
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                          Text(
+                            'One-time payment',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _selectedRegion == 'kenya' 
+                                  ? const Color(0xFF64748B) 
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                Padding(
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: isPopular ? 20 : 16,
-                    bottom: 16,
-                  ),
-                  child: Row(
-                    children: [
-                      Radio<int>(
-                        value: index,
-                        groupValue: _selectedPlanIndex,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedPlanIndex = value!;
-                          });
-                        },
-                        activeColor: AppTheme.primaryColor,
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _handleRegionChanged('international'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: _selectedRegion == 'international' 
+                            ? Colors.white 
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: _selectedRegion == 'international' 
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ]
+                            : null,
                       ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              plan['title'],
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              plan['price'],
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (plan['savings'] != null && plan['savings'] != 'Most Popular')
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            plan['savings'],
+                      child: Column(
+                        children: [
+                          const Text('🌍', style: TextStyle(fontSize: 24)),
+                          const SizedBox(height: 4),
+                          Text(
+                            'International',
                             style: TextStyle(
-                              color: Colors.green.shade800,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              fontWeight: _selectedRegion == 'international' 
+                                  ? FontWeight.w600 
+                                  : FontWeight.w500,
+                              color: _selectedRegion == 'international' 
+                                  ? const Color(0xFF1E293B) 
+                                  : const Color(0xFF64748B),
                             ),
                           ),
-                        ),
-                    ],
+                          Text(
+                            'Subscription',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _selectedRegion == 'international' 
+                                  ? const Color(0xFF64748B) 
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        );
-      }),
+        ],
+      ),
     );
   }
 
-  void _handlePurchase() async {
-    final selectedPlan = _currentPlans[_selectedPlanIndex];
-    final paystackUrl = selectedPlan['paystackLink'];
-    
-    // Show confirmation dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.payment,
-                color: AppTheme.primaryColor,
-              ),
-              const SizedBox(width: 8),
-              const Text('Confirm Purchase'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Plan: ${selectedPlan['title']}'),
-              const SizedBox(height: 8),
-              Text(
-                'Price: ${selectedPlan['price']}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Location: ${_isKenyanUser ? "Kenya" : "International"}',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _launchPaystack(paystackUrl);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Pay Now',
-                style: TextStyle(color: Colors.white),
+  Widget _buildErrorMessage() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _errorMessage,
+              style: const TextStyle(
+                color: Color(0xFFEF4444),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ],
+      ),
     );
   }
 
-  void _launchPaystack(String url) async {
-    try {
-      final Uri uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        _showErrorSnackBar('Could not launch payment page');
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error launching payment: $e');
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+  Widget _buildSuccessMessage() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF86EFAC)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _successMessage,
+              style: const TextStyle(
+                color: Color(0xFF10B981),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
